@@ -7,6 +7,9 @@ struct FreeDayApp: App {
 
     init() {
         ProAccessStore.recordFirstLaunchIfNeeded()
+        Task { @MainActor in
+            await SubscriptionStore.shared.startAndRefresh()
+        }
     }
 
     var body: some Scene {
