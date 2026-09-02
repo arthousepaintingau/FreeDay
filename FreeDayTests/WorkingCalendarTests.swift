@@ -22,10 +22,22 @@ struct WorkingCalendarTests {
 
     @Test("Configurable working week can include Saturday")
     func customWorkingWeek() {
-        var settings = WorkWeekSettings.australiaDefault
-        settings.workingWeekdays = [2, 3, 4, 5, 6, 7]
-        let saturdayOn = WorkingCalendar(settings: settings)
+        let saturdayOn = WorkingCalendar(settings: .australia(worksSaturday: true))
         #expect(saturdayOn.isWorkingDay(TestCalendar.date("2026-09-05")))
         #expect(!saturdayOn.isWorkingDay(TestCalendar.date("2026-09-06")))
+    }
+
+    @Test("Configurable working week can include Sunday")
+    func customWorkingWeekSunday() {
+        let sundayOn = WorkingCalendar(settings: .australia(worksSunday: true))
+        #expect(!sundayOn.isWorkingDay(TestCalendar.date("2026-09-05")))
+        #expect(sundayOn.isWorkingDay(TestCalendar.date("2026-09-06")))
+    }
+
+    @Test("Configurable working week can include both weekend days")
+    func customWorkingWeekBothWeekendDays() {
+        let bothOn = WorkingCalendar(settings: .australia(worksSaturday: true, worksSunday: true))
+        #expect(bothOn.isWorkingDay(TestCalendar.date("2026-09-05")))
+        #expect(bothOn.isWorkingDay(TestCalendar.date("2026-09-06")))
     }
 }

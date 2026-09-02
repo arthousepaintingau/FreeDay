@@ -88,7 +88,8 @@ struct FindFreeDaysView: View {
             FreeDayCard {
                 FreeDayEmptyState(
                     title: PersonalityCopy.fullyBooked,
-                    message: PersonalityCopy.noSlot(horizonDays: result.horizonDays)
+                    message: PersonalityCopy.noSlot(horizonDays: result.horizonDays),
+                    mascot: .booked
                 )
             }
             .accessibilityIdentifier("find-free-days-empty")
@@ -121,6 +122,10 @@ struct FindFreeDaysView: View {
             } label: {
                 FreeDayCard(emphasize: .free) {
                     VStack(alignment: .leading, spacing: FreeDaySpacing.lg) {
+                        AvailabilityHero(
+                            kind: .free,
+                            title: String(localized: "YES — YOU'RE FREE!", comment: "Find free days answer")
+                        )
                         HStack(spacing: FreeDaySpacing.xs) {
                             StatusBadge(availability: .free)
                             Text(PersonalityCopy.perfectFit)

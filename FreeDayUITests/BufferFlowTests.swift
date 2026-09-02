@@ -17,7 +17,11 @@ final class BufferFlowTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Calendar"].waitForExistence(timeout: 4))
         let bufferISO = UITestWorkingDays.iso(3)
         let freeISO = UITestWorkingDays.iso(4)
-        let bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        var bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        if !bufferDay.waitForExistence(timeout: 2) {
+            app.buttons["calendar-next"].tap()
+            bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        }
         XCTAssertTrue(bufferDay.waitForExistence(timeout: 4))
         XCTAssertTrue(
             bufferDay.label.contains("Reserved buffer day") || bufferDay.label.contains("Buffer"),
@@ -72,7 +76,11 @@ final class BufferFlowTests: XCTestCase {
 
         tapTab("Calendar")
         let bufferISO = UITestWorkingDays.iso(3)
-        let bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        var bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        if !bufferDay.waitForExistence(timeout: 2) {
+            app.buttons["calendar-next"].tap()
+            bufferDay = app.buttons["calendar-day-\(bufferISO)"]
+        }
         XCTAssertTrue(bufferDay.waitForExistence(timeout: 4))
         XCTAssertTrue(bufferDay.label.contains("Free."), "Removing buffer should free that working day")
     }

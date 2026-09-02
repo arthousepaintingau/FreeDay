@@ -6,15 +6,20 @@ struct AppEnvironment: Sendable {
     var scheduling: SchedulingEngine
     var availabilitySearch: AvailabilitySearch
 
-    static let australiaDefault: AppEnvironment = {
-        let calendar = WorkingCalendar.australiaDefault
-        let engine = SchedulingEngine(workingCalendar: calendar)
+    static let australiaDefault = make(settings: .australiaDefault)
+
+    static func make(settings: WorkWeekSettings) -> AppEnvironment {
+        make(workingCalendar: WorkingCalendar(settings: settings))
+    }
+
+    static func make(workingCalendar: WorkingCalendar) -> AppEnvironment {
+        let engine = SchedulingEngine(workingCalendar: workingCalendar)
         return AppEnvironment(
-            workingCalendar: calendar,
+            workingCalendar: workingCalendar,
             scheduling: engine,
             availabilitySearch: AvailabilitySearch(engine: engine)
         )
-    }()
+    }
 }
 
 private struct AppEnvironmentKey: EnvironmentKey {

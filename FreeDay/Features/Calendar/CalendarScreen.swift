@@ -135,10 +135,10 @@ struct CalendarScreen: View {
         if mode == .month {
             return formatters.monthTitle(month.monthStart)
         }
-        guard let monday = week.workingDays.first?.date, let friday = week.workingDays.last?.date else {
+        guard let first = week.workingDays.first?.date, let last = week.workingDays.last?.date else {
             return formatters.mediumDate(week.start)
         }
-        return formatters.weekRange(monday: monday, friday: friday)
+        return formatters.weekRange(monday: first, friday: last)
     }
 
     private func navigationRow(presentation: CalendarPresentation, isCurrent: Bool) -> some View {

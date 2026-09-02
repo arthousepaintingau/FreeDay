@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct AppRootView: View {
+    @Environment(WorkWeekStore.self) private var workWeek
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var tab: AppTab = .home
@@ -50,6 +51,7 @@ struct AppRootView: View {
             }
         }
         .tint(FreeDayColor.brand)
+        .environment(\.appEnvironment, workWeek.appEnvironment)
         .sheet(item: $sheet, content: sheetContent)
         .overlay(alignment: .top) {
             if let toast {
@@ -118,5 +120,5 @@ struct AppRootView: View {
 #Preview {
     AppRootView()
         .modelContainer(Persistence.previewContainer())
-        .environment(\.appEnvironment, .australiaDefault)
+        .environment(WorkWeekStore(defaults: UserDefaults(suiteName: "au.freeday.preview.workweek") ?? .standard))
 }

@@ -63,10 +63,18 @@ final class CalendarFlowTests: XCTestCase {
             booked = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Booked' AND label CONTAINS 'Smith House'")).firstMatch
         }
         XCTAssertTrue(booked.waitForExistence(timeout: 4), "Multi-day booked work should appear")
+        var quoted = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Quoted' AND label CONTAINS 'Johnson House'")).firstMatch
+        if !quoted.waitForExistence(timeout: 2) {
+            app.buttons["calendar-next"].tap()
+            quoted = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Quoted' AND label CONTAINS 'Johnson House'")).firstMatch
+        }
         XCTAssertTrue(
-            app.buttons.matching(NSPredicate(format: "label CONTAINS 'Quoted' AND label CONTAINS 'Johnson House'")).firstMatch.waitForExistence(timeout: 4),
+            quoted.waitForExistence(timeout: 4),
             "Quoted work should be visible without being labelled booked"
         )
+        if app.buttons["calendar-today"].isEnabled {
+            app.buttons["calendar-today"].tap()
+        }
 
         app.segmentedControls.buttons["Month"].tap()
         app.segmentedControls.buttons["Week"].tap()

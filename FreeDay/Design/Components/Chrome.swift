@@ -16,18 +16,25 @@ struct FreeDaySectionHeader: View {
 struct FreeDayEmptyState: View {
     let title: String
     var message: String? = nil
+    var mascot: FreeDayMascot.Mood? = .idle
 
     var body: some View {
-        VStack(alignment: .leading, spacing: FreeDaySpacing.xs) {
-            Text(title)
-                .font(FreeDayFont.title)
-                .foregroundStyle(FreeDayColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            if let message {
-                Text(message)
-                    .font(FreeDayFont.body)
-                    .foregroundStyle(FreeDayColor.muted)
+        HStack(alignment: .top, spacing: FreeDaySpacing.md) {
+            if let mascot {
+                FreeDayMascot(mood: mascot, size: 36)
+                    .padding(.top, 2)
+            }
+            VStack(alignment: .leading, spacing: FreeDaySpacing.xs) {
+                Text(title)
+                    .font(FreeDayFont.title)
+                    .foregroundStyle(FreeDayColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
+                if let message {
+                    Text(message)
+                        .font(FreeDayFont.body)
+                        .foregroundStyle(FreeDayColor.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

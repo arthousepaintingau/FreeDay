@@ -21,6 +21,7 @@ struct PrimaryButton: View {
             .foregroundStyle(FreeDayColor.brandOn)
             .background(isEnabled ? FreeDayColor.brand : FreeDayColor.brand.opacity(0.4))
             .clipShape(RoundedRectangle(cornerRadius: FreeDayRadius.button, style: .continuous))
+            .shadow(color: isEnabled ? FreeDayColor.lift : .clear, radius: 8, y: 3)
         }
         .buttonStyle(PressableButtonStyle())
         .disabled(!isEnabled)

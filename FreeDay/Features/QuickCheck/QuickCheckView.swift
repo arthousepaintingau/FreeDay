@@ -254,6 +254,10 @@ struct QuickCheckView: View {
     private func mainAnswer(_ slot: FreeSlot, personality: String?, formatters: DateFormatters) -> some View {
         FreeDayCard(emphasize: .free) {
             VStack(alignment: .leading, spacing: FreeDaySpacing.lg) {
+                AvailabilityHero(
+                    kind: .free,
+                    title: String(localized: "YES — YOU'RE FREE!", comment: "Quick check free answer")
+                )
                 StatusBadge(availability: .free)
 
                 endpoint(
@@ -367,10 +371,7 @@ struct QuickCheckView: View {
         case .available(_, let slot):
             FreeDayCard(emphasize: .free) {
                 VStack(alignment: .leading, spacing: FreeDaySpacing.lg) {
-                    Text(PersonalityCopy.yesYoureFree)
-                        .font(FreeDayFont.headline)
-                        .foregroundStyle(FreeDayColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
+                    AvailabilityHero(kind: .free, title: PersonalityCopy.yesYoureFree)
                     StatusBadge(availability: .free)
                     endpoint(
                         title: String(localized: "You can start", comment: "Slot start heading"),
@@ -405,10 +406,7 @@ struct QuickCheckView: View {
             VStack(alignment: .leading, spacing: FreeDaySpacing.lg) {
                 FreeDayCard(emphasize: .booked) {
                     VStack(alignment: .leading, spacing: FreeDaySpacing.sm) {
-                        Text(PersonalityCopy.notAvailable)
-                            .font(FreeDayFont.headline)
-                            .foregroundStyle(FreeDayColor.ink)
-                            .fixedSize(horizontal: false, vertical: true)
+                        AvailabilityHero(kind: .booked, title: PersonalityCopy.notAvailable)
                         if let conflictName, !conflictName.isEmpty {
                             Text(PersonalityCopy.conflictsWith(conflictName))
                                 .font(FreeDayFont.body)

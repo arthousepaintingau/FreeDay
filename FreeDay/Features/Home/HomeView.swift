@@ -11,6 +11,7 @@ struct HomeView: View {
     var onUseFreeDay: (Date) -> Void
 
     @State private var showComing = false
+    @State private var showSettings = false
 
     var body: some View {
         let engine = environment.scheduling
@@ -26,10 +27,7 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: FreeDaySpacing.sm) {
                         FreeDaySectionHeader(title: String(localized: "Free today?", comment: "Home status heading"))
                         StatusBadge(availability: summary.todayAvailability)
-                        Text(todayCopy(summary.todayAvailability))
-                            .font(FreeDayFont.display)
-                            .foregroundStyle(FreeDayColor.ink)
-                            .fixedSize(horizontal: false, vertical: true)
+                        todayAnswer(summary.todayAvailability)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -69,12 +67,24 @@ struct HomeView: View {
         .navigationDestination(isPresented: $showComing) {
             ComingView(onFindFreeDays: onFindFreeDays, onUseFreeDay: onUseFreeDay)
         }
+        .navigationDestination(isPresented: $showSettings) {
+            SettingsView()
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("FreeDay")
                     .font(FreeDayFont.headline)
                     .foregroundStyle(FreeDayColor.ink)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel(String(localized: "Settings", comment: "Open settings"))
+                .accessibilityIdentifier("home-settings")
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -191,7 +201,8 @@ struct HomeView: View {
                 FreeDayCard {
                     FreeDayEmptyState(
                         title: String(localized: "Nothing coming up.", comment: "Empty upcoming jobs title"),
-                        message: String(localized: "Enjoy the space.", comment: "Empty upcoming jobs message")
+                        message: String(localized: "Enjoy the space.", comment: "Empty upcoming jobs message"),
+                        mascot: .free
                     )
                 }
             } else {
@@ -205,6 +216,27 @@ struct HomeView: View {
                     .buttonStyle(PressableButtonStyle())
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func todayAnswer(_ availability: DayAvailability) -> some View {
+        switch availability {
+        case .free:
+            AvailabilityHero(
+                kind: .free,
+                title: String(localized: "YES — YOU'RE FREE!", comment: "Home today free")
+            )
+        case .booked:
+            AvailabilityHero(
+                kind: .booked,
+                title: String(localized: "NO — BOOKED", comment: "Home today booked")
+            )
+        case .tentative, .nonWorking:
+            Text(todayCopy(availability))
+                .font(FreeDayFont.display)
+                .foregroundStyle(FreeDayColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

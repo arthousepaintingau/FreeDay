@@ -12,10 +12,10 @@ struct MonthView: View {
     var body: some View {
         VStack(spacing: FreeDaySpacing.sm) {
             LazyVGrid(columns: columns, spacing: FreeDaySpacing.xxs) {
-                ForEach(Array(weekdayHeaders.enumerated()), id: \.offset) { index, symbol in
-                    Text(symbol)
+                ForEach(Array(weekdayHeaders.enumerated()), id: \.offset) { _, item in
+                    Text(item.symbol)
                         .font(FreeDayFont.label)
-                        .foregroundStyle(index >= 5 ? FreeDayColor.muted.opacity(0.7) : FreeDayColor.muted)
+                        .foregroundStyle(item.isWorking ? FreeDayColor.muted : FreeDayColor.muted.opacity(0.7))
                         .frame(maxWidth: .infinity)
                         .accessibilityHidden(true)
                 }
@@ -37,10 +37,13 @@ struct MonthView: View {
         sizeClass == .regular ? 80 : 64
     }
 
-    private var weekdayHeaders: [String] {
+    private var weekdayHeaders: [(symbol: String, isWorking: Bool)] {
         month.days.prefix(7).compactMap { day in
             guard let day else { return nil }
-            return String(formatters.weekday(day.date).uppercased().prefix(3))
+            return (
+                String(formatters.weekday(day.date).uppercased().prefix(3)),
+                day.isWorkingDay
+            )
         }
     }
 
@@ -73,10 +76,17 @@ struct MonthView: View {
             .background(
                 RoundedRectangle(cornerRadius: FreeDayRadius.chip, style: .continuous)
                     .fill(FreeDayColor.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: FreeDayRadius.chip, style: .continuous)
+                            .fill(inMonth ? FreeDayColor.statusFill(day.kind) : Color.clear)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: FreeDayRadius.chip, style: .continuous)
-                    .stroke(day.isToday ? FreeDayColor.brand : FreeDayColor.hairline.opacity(inMonth ? 0.7 : 0.35), lineWidth: day.isToday ? 2 : 1)
+                    .stroke(
+                        day.isToday ? FreeDayColor.brand : statusStroke(day, inMonth: inMonth),
+                        lineWidth: day.isToday ? 2 : (day.kind == .booked && inMonth ? 1.5 : 1)
+                    )
             )
             .opacity(inMonth ? 1 : 0.55)
         }
@@ -85,6 +95,17 @@ struct MonthView: View {
         .accessibilityHint(hint(for: day))
         .accessibilityIdentifier("calendar-day-\(day.isoDate)")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private func statusStroke(_ day: CalendarDayModel, inMonth: Bool) -> Color {
+        guard inMonth else { return FreeDayColor.hairline.opacity(0.35) }
+        switch day.kind {
+        case .booked: return FreeDayColor.booked.opacity(0.7)
+        case .free: return FreeDayColor.free.opacity(0.55)
+        case .buffer: return FreeDayColor.buffer.opacity(0.6)
+        case .quoted: return FreeDayColor.tentative.opacity(0.55)
+        default: return FreeDayColor.hairline.opacity(0.7)
+        }
     }
 
     private func dotOpacity(_ day: CalendarDayModel, inMonth: Bool) -> Double {

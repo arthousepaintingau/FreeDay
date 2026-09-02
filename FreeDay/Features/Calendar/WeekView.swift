@@ -26,10 +26,12 @@ struct WeekView: View {
                     onSelect(day)
                 }
             }
-            HStack(spacing: FreeDaySpacing.sm) {
-                ForEach(week.weekendDays) { day in
-                    CalendarDayCard(day: day, formatters: formatters, style: .weekend) {
-                        onSelect(day)
+            if !week.weekendDays.isEmpty {
+                HStack(spacing: FreeDaySpacing.sm) {
+                    ForEach(week.weekendDays) { day in
+                        CalendarDayCard(day: day, formatters: formatters, style: .weekend) {
+                            onSelect(day)
+                        }
                     }
                 }
             }
@@ -45,14 +47,18 @@ struct WeekView: View {
                     }
                 }
             }
-            HStack(spacing: FreeDaySpacing.sm) {
-                ForEach(week.weekendDays) { day in
-                    CalendarDayCard(day: day, formatters: formatters, style: .weekend) {
-                        onSelect(day)
+            if !week.weekendDays.isEmpty {
+                HStack(spacing: FreeDaySpacing.sm) {
+                    ForEach(week.weekendDays) { day in
+                        CalendarDayCard(day: day, formatters: formatters, style: .weekend) {
+                            onSelect(day)
+                        }
                     }
-                }
-                ForEach(0..<3, id: \.self) { _ in
-                    Color.clear.frame(maxWidth: .infinity)
+                    if week.workingDays.count == 5 {
+                        ForEach(0..<max(0, 5 - week.weekendDays.count), id: \.self) { _ in
+                            Color.clear.frame(maxWidth: .infinity)
+                        }
+                    }
                 }
             }
         }
@@ -81,7 +87,14 @@ struct CalendarDayCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(style == .weekend ? FreeDaySpacing.md : FreeDaySpacing.md)
-            .background(FreeDayColor.surface)
+            .background(
+                RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
+                    .fill(FreeDayColor.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
+                            .fill(FreeDayColor.statusFill(day.kind))
+                    )
+            )
             .clipShape(RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
@@ -100,10 +113,10 @@ struct CalendarDayCard: View {
         if day.isToday { return FreeDayColor.brand }
         if style == .weekend { return FreeDayColor.hairline.opacity(0.6) }
         switch day.kind {
-        case .free, .completed: return FreeDayColor.free.opacity(0.45)
-        case .booked: return FreeDayColor.booked.opacity(0.5)
-        case .buffer: return FreeDayColor.buffer.opacity(0.55)
-        case .quoted: return FreeDayColor.tentative.opacity(0.5)
+        case .free, .completed: return FreeDayColor.free.opacity(0.75)
+        case .booked: return FreeDayColor.booked.opacity(0.8)
+        case .buffer: return FreeDayColor.buffer.opacity(0.8)
+        case .quoted: return FreeDayColor.tentative.opacity(0.75)
         case .nonWorking: return FreeDayColor.hairline.opacity(0.6)
         }
     }

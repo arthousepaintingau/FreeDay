@@ -6,6 +6,14 @@ struct TestCalendar {
     static let working = WorkingCalendar.australiaDefault
     static let engine = SchedulingEngine(workingCalendar: working)
 
+    static func makeEngine(worksSaturday: Bool = false, worksSunday: Bool = false) -> SchedulingEngine {
+        SchedulingEngine(
+            workingCalendar: WorkingCalendar(
+                settings: .australia(worksSaturday: worksSaturday, worksSunday: worksSunday)
+            )
+        )
+    }
+
     static func date(_ iso: String) -> Date {
         let parts = iso.split(separator: "-").compactMap { Int($0) }
         precondition(parts.count == 3, "Expected yyyy-MM-dd")

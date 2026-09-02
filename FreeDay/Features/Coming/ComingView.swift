@@ -105,11 +105,17 @@ struct ComingView: View {
     }
 
     private func metric(value: Int, title: String, identifier: String, spoken: String) -> some View {
-        FreeDayCard(padding: FreeDaySpacing.md) {
+        let tint: Color = {
+            if identifier.contains("free") { return FreeDayColor.free }
+            if identifier.contains("booked") { return FreeDayColor.booked }
+            if identifier.contains("buffer") { return FreeDayColor.buffer }
+            return FreeDayColor.ink
+        }()
+        return FreeDayCard(padding: FreeDaySpacing.md) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(value)")
                     .font(FreeDayFont.display)
-                    .foregroundStyle(FreeDayColor.ink)
+                    .foregroundStyle(tint)
                     .monospacedDigit()
                 Text(title)
                     .font(FreeDayFont.label)
@@ -251,7 +257,14 @@ private struct ComingDayRow: View {
         }
         .padding(day.isWorkingDay ? FreeDaySpacing.md : FreeDaySpacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(FreeDayColor.surface)
+        .background(
+            RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
+                .fill(FreeDayColor.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
+                        .fill(FreeDayColor.statusFill(day.kind))
+                )
+        )
         .clipShape(RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
@@ -263,9 +276,9 @@ private struct ComingDayRow: View {
     private var border: Color {
         if day.isToday { return FreeDayColor.brand }
         switch day.kind {
-        case .free: return FreeDayColor.free.opacity(0.45)
-        case .booked: return FreeDayColor.booked.opacity(0.5)
-        case .buffer: return FreeDayColor.buffer.opacity(0.55)
+        case .free: return FreeDayColor.free.opacity(0.75)
+        case .booked: return FreeDayColor.booked.opacity(0.8)
+        case .buffer: return FreeDayColor.buffer.opacity(0.8)
         default: return FreeDayColor.hairline.opacity(0.55)
         }
     }

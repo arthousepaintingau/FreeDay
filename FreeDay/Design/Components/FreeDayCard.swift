@@ -17,21 +17,30 @@ struct FreeDayCard<Content: View>: View {
         content()
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(FreeDayColor.surface)
+            .background(fill)
             .clipShape(RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: FreeDayRadius.card, style: .continuous)
                     .stroke(border, lineWidth: emphasize == .none ? 1 : 2)
             )
+            .shadow(color: emphasize == .none ? FreeDayColor.lift : .clear, radius: 8, y: 3)
+    }
+
+    private var fill: Color {
+        switch emphasize {
+        case .none, .current: FreeDayColor.surface
+        case .free, .proposed: FreeDayColor.surface
+        case .booked: FreeDayColor.surface
+        }
     }
 
     private var border: Color {
         switch emphasize {
-        case .none: FreeDayColor.hairline.opacity(0.9)
-        case .free: FreeDayColor.free.opacity(0.55)
-        case .booked: FreeDayColor.booked.opacity(0.45)
+        case .none: FreeDayColor.hairline
+        case .free: FreeDayColor.free.opacity(0.7)
+        case .booked: FreeDayColor.booked.opacity(0.7)
         case .current: FreeDayColor.muted.opacity(0.35)
-        case .proposed: FreeDayColor.free.opacity(0.6)
+        case .proposed: FreeDayColor.free.opacity(0.7)
         }
     }
 }
@@ -59,9 +68,8 @@ struct StatusBadge: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(FreeDayColor.status(availability))
-                .frame(width: 8, height: 8)
+            Image(systemName: availability == .free ? "checkmark.circle.fill" : availability == .booked ? "xmark.circle.fill" : "circle.fill")
+                .font(.system(size: 12, weight: .bold))
                 .accessibilityHidden(true)
             Text(availability.title.uppercased())
                 .font(FreeDayFont.label)
@@ -70,7 +78,7 @@ struct StatusBadge: View {
         .foregroundStyle(FreeDayColor.status(availability))
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(FreeDayColor.status(availability).opacity(0.14))
+        .background(FreeDayColor.status(availability).opacity(0.18))
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(availability.title)
@@ -83,9 +91,8 @@ struct CalendarStatusBadge: View {
     var body: some View {
         let tint = FreeDayColor.status(kind)
         HStack(spacing: 6) {
-            Circle()
-                .fill(tint)
-                .frame(width: 8, height: 8)
+            Image(systemName: calendarBadgeSymbol(kind))
+                .font(.system(size: 11, weight: .bold))
                 .accessibilityHidden(true)
             Text(kind.badgeTitle.uppercased())
                 .font(FreeDayFont.label)
@@ -96,10 +103,20 @@ struct CalendarStatusBadge: View {
         .foregroundStyle(tint)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(tint.opacity(0.14))
+        .background(tint.opacity(0.2))
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(kind.badgeTitle)
+    }
+
+    private func calendarBadgeSymbol(_ kind: CalendarDayKind) -> String {
+        switch kind {
+        case .free, .completed: "checkmark.circle.fill"
+        case .booked: "xmark.circle.fill"
+        case .buffer: "pause.circle.fill"
+        case .quoted: "circle.fill"
+        case .nonWorking: "moon.zzz.fill"
+        }
     }
 }
 
@@ -113,9 +130,8 @@ struct ProjectStatusBadge: View {
         case .completed: .nonWorking
         }
         HStack(spacing: 6) {
-            Circle()
-                .fill(FreeDayColor.status(availability))
-                .frame(width: 8, height: 8)
+            Image(systemName: status == .booked ? "xmark.circle.fill" : status == .quoted ? "circle.fill" : "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .bold))
                 .accessibilityHidden(true)
             Text(status.title.uppercased())
                 .font(FreeDayFont.label)
@@ -124,7 +140,7 @@ struct ProjectStatusBadge: View {
         .foregroundStyle(FreeDayColor.status(availability))
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(FreeDayColor.status(availability).opacity(0.14))
+        .background(FreeDayColor.status(availability).opacity(0.18))
         .clipShape(Capsule())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(status.title)
@@ -196,7 +212,7 @@ struct DayStepper: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(FreeDayColor.ink)
                 .frame(width: 48, height: 48)
-                .background(FreeDayColor.canvas)
+                .background(FreeDayColor.hairline.opacity(0.45))
                 .clipShape(Circle())
         }
         .buttonStyle(PressableButtonStyle())

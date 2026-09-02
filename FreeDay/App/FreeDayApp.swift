@@ -3,12 +3,12 @@ import SwiftUI
 
 @main
 struct FreeDayApp: App {
-    private let environment = AppEnvironment.australiaDefault
+    @State private var workWeek = WorkWeekStore()
 
     var body: some Scene {
         WindowGroup {
             AppRootView()
-                .environment(\.appEnvironment, environment)
+                .environment(workWeek)
         }
         .modelContainer(Persistence.containerForCurrentProcess())
     }
