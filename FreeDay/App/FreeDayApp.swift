@@ -5,6 +5,10 @@ import SwiftUI
 struct FreeDayApp: App {
     @State private var workWeek = WorkWeekStore()
 
+    init() {
+        ProAccessStore.recordFirstLaunchIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             AppRootView()
