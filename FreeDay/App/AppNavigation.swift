@@ -19,12 +19,14 @@ enum AppSheet: Identifiable {
     case findFreeDays
     case quickCheck
     case addProject(ProjectPrefill)
+    case paywall
 
     var id: String {
         switch self {
         case .findFreeDays: "findFreeDays"
         case .quickCheck: "quickCheck"
         case .addProject: "addProject"
+        case .paywall: "paywall"
         }
     }
 }

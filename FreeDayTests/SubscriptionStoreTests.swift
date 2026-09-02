@@ -183,6 +183,8 @@ final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable 
     var restoreCount = 0
     var finishUnfinishedCount = 0
     var purchaseOutcome: PurchaseOutcome = .success
+    var purchaseError: SubscriptionError?
+    var restoreError: SubscriptionError?
 
     private let continuation: AsyncStream<Void>.Continuation
     private let stream: AsyncStream<Void>
@@ -199,6 +201,9 @@ final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable 
 
     func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome {
         purchased.append(id)
+        if let purchaseError {
+            throw purchaseError
+        }
         if let entitlementsAfterPurchase {
             entitlements = entitlementsAfterPurchase
         }
@@ -215,6 +220,9 @@ final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable 
 
     func restore() async throws {
         restoreCount += 1
+        if let restoreError {
+            throw restoreError
+        }
         if let entitlementsAfterRestore {
             entitlements = entitlementsAfterRestore
         }

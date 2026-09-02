@@ -103,6 +103,8 @@ struct AppRootView: View {
                     presentToast(message)
                 }
             }
+        case .paywall:
+            ProPaywallView()
         }
     }
 
