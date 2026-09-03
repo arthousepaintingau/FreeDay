@@ -101,4 +101,41 @@ struct ProAccessTests {
         #expect(!lastSecond.trialExpired)
         #expect(lastSecond.daysRemaining == 1)
     }
+
+    @Test("Trial active with no subscription is unlocked")
+    func trialActiveWithoutSubscriptionIsUnlocked() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let access = store(defaults: defaults, now: start)
+
+        #expect(access.trialActive)
+        #expect(access.hasFullAccess(isSubscribed: false))
+    }
+
+    @Test("Expired trial with an active subscription is unlocked")
+    func expiredTrialWithActiveSubscriptionIsUnlocked() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        _ = store(defaults: defaults, now: start)
+        let after = gmt.date(byAdding: .day, value: 30, to: start)!.addingTimeInterval(1)
+        let access = store(defaults: defaults, now: after)
+
+        #expect(access.trialExpired)
+        #expect(access.hasFullAccess(isSubscribed: true))
+    }
+
+    @Test("Expired trial with no subscription is locked")
+    func expiredTrialWithoutSubscriptionIsLocked() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        _ = store(defaults: defaults, now: start)
+        let after = gmt.date(byAdding: .day, value: 30, to: start)!.addingTimeInterval(1)
+        let access = store(defaults: defaults, now: after)
+
+        #expect(access.trialExpired)
+        #expect(!access.hasFullAccess(isSubscribed: false))
+    }
 }

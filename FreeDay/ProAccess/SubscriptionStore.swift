@@ -1,10 +1,12 @@
 import Foundation
+import Observation
 
 /// Isolated StoreKit 2 subscription manager.
 ///
 /// Does not present UI, gate features, or change the 30-day trial.
-/// Later: `ProAccessStore.hasFullAccess` can become `trialActive || isSubscribed`.
+/// `isSubscribed` is the StoreKit input to `ProAccessStore.hasFullAccess(isSubscribed:)`.
 @MainActor
+@Observable
 final class SubscriptionStore {
     /// Retained for app launch so `Transaction.updates` keeps running.
     static let shared = SubscriptionStore()
@@ -81,16 +83,23 @@ final class SubscriptionStore {
     }
 
     private func refreshProducts() async {
+        let loaded: [LoadedSubscriptionProduct]
         do {
-            products = try await commerce.loadProducts()
+            loaded = try await commerce.loadProducts()
         } catch {
-            products = []
+            loaded = []
+        }
+        if loaded != products {
+            products = loaded
         }
     }
 
     private func refreshEntitlements() async {
         let entitlements = await commerce.currentEntitlements()
-        status = Self.status(from: entitlements, now: now())
+        let next = Self.status(from: entitlements, now: now())
+        if next != status {
+            status = next
+        }
     }
 
     static func status(

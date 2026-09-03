@@ -3,8 +3,7 @@ import Foundation
 /// Isolated 30-day free-access clock.
 ///
 /// Records a write-once trial start date in UserDefaults on first launch.
-/// Does not gate features, talk to StoreKit, or present UI.
-/// Later, `hasFullAccess` can become `trialActive || isPro`.
+/// Does not talk to StoreKit or present UI. Access is `trialActive || isSubscribed`.
 final class ProAccessStore {
     static let trialStartDateKey = "proAccess.trialStartDate"
     static let trialDurationDays = 30
@@ -60,8 +59,13 @@ final class ProAccessStore {
         return Int(ceil(remaining / Self.secondsPerDay))
     }
 
-    /// Seam for StoreKit. Today this is trial-only.
+    /// Full app access while the 30-day trial is active, or while a verified subscription is active.
+    func hasFullAccess(isSubscribed: Bool) -> Bool {
+        trialActive || isSubscribed
+    }
+
+    /// Trial-only convenience. Prefer `hasFullAccess(isSubscribed:)`.
     var hasFullAccess: Bool {
-        trialActive
+        hasFullAccess(isSubscribed: false)
     }
 }

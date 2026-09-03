@@ -10,6 +10,15 @@ struct AppRootView: View {
     @State private var toast: String?
 
     var body: some View {
+        let access = ProAccessStore()
+        if access.hasFullAccess(isSubscribed: SubscriptionStore.shared.isSubscribed) {
+            unlockedApp
+        } else {
+            ProPaywallView()
+        }
+    }
+
+    private var unlockedApp: some View {
         TabView(selection: $tab) {
             Tab(String(localized: "Home", comment: "Tab title"), systemImage: "sun.max.fill", value: AppTab.home) {
                 NavigationStack {
