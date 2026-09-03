@@ -20,9 +20,15 @@ struct ProAccessTests {
 
     private func store(
         defaults: UserDefaults,
-        now: Date
+        now: Date,
+        simulateExpiredTrial: Bool = false
     ) -> ProAccessStore {
-        ProAccessStore(defaults: defaults, now: { now }, calendar: gmt)
+        ProAccessStore(
+            defaults: defaults,
+            now: { now },
+            calendar: gmt,
+            simulateExpiredTrial: simulateExpiredTrial
+        )
     }
 
     @Test("First launch creates the trial start date")
@@ -138,4 +144,49 @@ struct ProAccessTests {
         #expect(access.trialExpired)
         #expect(!access.hasFullAccess(isSubscribed: false))
     }
+
+    @Test("Production access logic is unchanged when the DEBUG expiry hook is off")
+    func productionAccessLogicUnchangedWhenHookIsOff() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        _ = store(defaults: defaults, now: start, simulateExpiredTrial: false)
+
+        let day29 = gmt.date(byAdding: .day, value: 29, to: start)!
+        let active = store(defaults: defaults, now: day29, simulateExpiredTrial: false)
+        #expect(active.trialActive)
+        #expect(!active.trialExpired)
+        #expect(active.daysRemaining == 1)
+        #expect(active.hasFullAccess(isSubscribed: false))
+        #expect(active.hasFullAccess(isSubscribed: true))
+
+        let after = gmt.date(byAdding: .day, value: 30, to: start)!.addingTimeInterval(1)
+        let expired = store(defaults: defaults, now: after, simulateExpiredTrial: false)
+        #expect(expired.trialExpired)
+        #expect(!expired.trialActive)
+        #expect(expired.daysRemaining == 0)
+        #expect(!expired.hasFullAccess(isSubscribed: false))
+        #expect(expired.hasFullAccess(isSubscribed: true))
+        #expect(expired.trialStartDate == start)
+        #expect(expired.expiryDate == gmt.date(byAdding: .day, value: 30, to: start))
+    }
+
+    #if DEBUG
+    @Test("DEBUG expiry hook forces lock without changing the stored trial start date")
+    func debugExpiryHookForcesLockWithoutChangingStartDate() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        _ = store(defaults: defaults, now: start, simulateExpiredTrial: false)
+        let forced = store(defaults: defaults, now: start, simulateExpiredTrial: true)
+
+        #expect(forced.trialStartDate == start)
+        #expect(defaults.object(forKey: ProAccessStore.trialStartDateKey) as? Date == start)
+        #expect(forced.expiryDate == gmt.date(byAdding: .day, value: 30, to: start))
+        #expect(forced.trialExpired)
+        #expect(!forced.trialActive)
+        #expect(!forced.hasFullAccess(isSubscribed: false))
+        #expect(forced.hasFullAccess(isSubscribed: true))
+    }
+    #endif
 }

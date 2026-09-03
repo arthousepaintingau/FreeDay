@@ -13,16 +13,30 @@ final class ProAccessStore {
     private let now: () -> Date
     private let calendar: Calendar
 
+    #if DEBUG
+    /// DEBUG-only device hook. Set to `true` to simulate an expired trial.
+    /// Does not change the stored start date. Keep `false` except when testing the paywall.
+    static let simulateExpiredTrial = false
+
+    private let simulateExpiredOverride: Bool
+    #endif
+
     /// First-launch moment. Never overwritten on later launches.
     let trialStartDate: Date
 
     init(
         defaults: UserDefaults = .standard,
         now: @escaping () -> Date = Date.init,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        simulateExpiredTrial: Bool? = nil
     ) {
         self.now = now
         self.calendar = calendar
+        #if DEBUG
+        self.simulateExpiredOverride = simulateExpiredTrial ?? Self.simulateExpiredTrial
+        #else
+        _ = simulateExpiredTrial
+        #endif
         if let stored = defaults.object(forKey: Self.trialStartDateKey) as? Date {
             self.trialStartDate = stored
         } else {
@@ -46,7 +60,12 @@ final class ProAccessStore {
     }
 
     var trialExpired: Bool {
-        now() >= expiryDate
+        #if DEBUG
+        if simulateExpiredOverride {
+            return true
+        }
+        #endif
+        return now() >= expiryDate
     }
 
     var trialActive: Bool {
