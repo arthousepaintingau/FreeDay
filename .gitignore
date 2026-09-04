@@ -27,3 +27,8 @@ playground.xcworkspace
 *.mobileprovision
 .env
 .env.*
+*.p8
+*.pem
+*.key
+*.cer
+AuthKey_*.p8
