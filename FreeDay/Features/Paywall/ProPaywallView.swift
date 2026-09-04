@@ -3,8 +3,13 @@ import SwiftUI
 struct ProPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: PaywallModel
+    private let presentation: PaywallPresentation
 
-    init(store: SubscriptionStore = .shared) {
+    init(
+        presentation: PaywallPresentation = .expiredTrial,
+        store: SubscriptionStore = .shared
+    ) {
+        self.presentation = presentation
         _model = State(initialValue: PaywallModel(store: store))
     }
 
@@ -13,13 +18,13 @@ struct ProPaywallView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: FreeDaySpacing.xl) {
                     VStack(alignment: .leading, spacing: FreeDaySpacing.sm) {
-                        Text(PaywallCopy.headline)
+                        Text(PaywallCopy.headline(for: presentation, isSubscribed: model.isSubscribed))
                             .font(FreeDayFont.title)
                             .foregroundStyle(FreeDayColor.ink)
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("paywall-headline")
 
-                        Text(PaywallCopy.explanation)
+                        Text(PaywallCopy.explanation(for: presentation, isSubscribed: model.isSubscribed))
                             .font(FreeDayFont.body)
                             .foregroundStyle(FreeDayColor.muted)
                             .fixedSize(horizontal: false, vertical: true)
@@ -110,22 +115,33 @@ struct ProPaywallView: View {
                         .foregroundStyle(FreeDayColor.muted)
                 }
 
-                PrimaryButton(
-                    title: purchasing
-                        ? String(localized: "Purchasing…", comment: "Paywall purchasing")
-                        : String(localized: "Subscribe", comment: "Paywall subscribe"),
-                    isEnabled: id == .monthly ? model.canPurchaseMonthly : model.canPurchaseYearly,
-                    action: {
-                        Task {
-                            if id == .monthly {
-                                await model.purchaseMonthly()
-                            } else {
-                                await model.purchaseYearly()
+                if model.isSubscribed {
+                    Text(
+                        model.subscribedProductID == id
+                            ? String(localized: "Current plan", comment: "Paywall current subscribed plan")
+                            : String(localized: "Included in FreeDay Pro", comment: "Paywall other plan while subscribed")
+                    )
+                    .font(FreeDayFont.body)
+                    .foregroundStyle(FreeDayColor.muted)
+                    .accessibilityIdentifier(id == .monthly ? "paywall-monthly-status" : "paywall-yearly-status")
+                } else {
+                    PrimaryButton(
+                        title: purchasing
+                            ? String(localized: "Purchasing…", comment: "Paywall purchasing")
+                            : String(localized: "Subscribe", comment: "Paywall subscribe"),
+                        isEnabled: id == .monthly ? model.canPurchaseMonthly : model.canPurchaseYearly,
+                        action: {
+                            Task {
+                                if id == .monthly {
+                                    await model.purchaseMonthly()
+                                } else {
+                                    await model.purchaseYearly()
+                                }
                             }
                         }
-                    }
-                )
-                .accessibilityIdentifier(id == .monthly ? "paywall-subscribe-monthly" : "paywall-subscribe-yearly")
+                    )
+                    .accessibilityIdentifier(id == .monthly ? "paywall-subscribe-monthly" : "paywall-subscribe-yearly")
+                }
             }
         }
     }

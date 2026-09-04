@@ -14,16 +14,53 @@ enum PaywallFeedback: Equatable, Sendable {
     case pending(String)
 }
 
+enum PaywallPresentation: Equatable, Sendable {
+    /// Mandatory lock after the 30-day initial access period ends.
+    case expiredTrial
+    /// Pro screen opened from Settings while the app is already unlocked.
+    case voluntary
+}
+
 enum PaywallCopy {
     static var headline: String {
-        String(localized: "Your 30-day free access has ended", comment: "Paywall headline")
+        headline(for: .expiredTrial, isSubscribed: false)
     }
 
     static var explanation: String {
-        String(
-            localized: "A Pro subscription is required to continue using FreeDay.",
-            comment: "Paywall explanation"
-        )
+        explanation(for: .expiredTrial, isSubscribed: false)
+    }
+
+    static func headline(for presentation: PaywallPresentation, isSubscribed: Bool) -> String {
+        if isSubscribed {
+            return String(localized: "You're subscribed to FreeDay Pro.", comment: "Paywall headline when already subscribed")
+        }
+        switch presentation {
+        case .expiredTrial:
+            return String(localized: "Your 30-day free access has ended", comment: "Paywall headline")
+        case .voluntary:
+            return String(localized: "Upgrade to FreeDay Pro", comment: "Paywall headline from Settings during trial")
+        }
+    }
+
+    static func explanation(for presentation: PaywallPresentation, isSubscribed: Bool) -> String {
+        if isSubscribed {
+            return String(
+                localized: "Your subscription is active. Restore Purchases can confirm it on this Apple Account.",
+                comment: "Paywall explanation when already subscribed"
+            )
+        }
+        switch presentation {
+        case .expiredTrial:
+            return String(
+                localized: "A Pro subscription is required to continue using FreeDay.",
+                comment: "Paywall explanation"
+            )
+        case .voluntary:
+            return String(
+                localized: "Subscribe now for uninterrupted full access after your 30-day initial access period.",
+                comment: "Paywall explanation from Settings during trial"
+            )
+        }
     }
 
     static func planTitle(for id: SubscriptionProductID) -> String {

@@ -14,7 +14,7 @@ struct AppRootView: View {
         if access.hasFullAccess(isSubscribed: SubscriptionStore.shared.isSubscribed) {
             unlockedApp
         } else {
-            ProPaywallView()
+            ProPaywallView(presentation: .expiredTrial)
         }
     }
 
@@ -113,7 +113,7 @@ struct AppRootView: View {
                 }
             }
         case .paywall:
-            ProPaywallView()
+            ProPaywallView(presentation: .expiredTrial)
         }
     }
 

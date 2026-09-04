@@ -22,6 +22,40 @@ struct PaywallModelTests {
     func headlineAndExplanation() {
         #expect(PaywallCopy.headline == "Your 30-day free access has ended")
         #expect(PaywallCopy.explanation == "A Pro subscription is required to continue using FreeDay.")
+        #expect(PaywallCopy.headline(for: .expiredTrial, isSubscribed: false) == PaywallCopy.headline)
+        #expect(PaywallCopy.explanation(for: .expiredTrial, isSubscribed: false) == PaywallCopy.explanation)
+    }
+
+    @Test("Voluntary trial copy does not claim the trial has ended")
+    func voluntaryTrialCopy() {
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: false) == "Upgrade to FreeDay Pro")
+        #expect(
+            PaywallCopy.explanation(for: .voluntary, isSubscribed: false)
+                == "Subscribe now for uninterrupted full access after your 30-day initial access period."
+        )
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: false) != PaywallCopy.headline)
+    }
+
+    @Test("Subscribed copy does not ask the user to buy again")
+    func subscribedCopy() {
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: true) == "You're subscribed to FreeDay Pro.")
+        #expect(PaywallCopy.headline(for: .expiredTrial, isSubscribed: true) == "You're subscribed to FreeDay Pro.")
+        #expect(
+            PaywallCopy.explanation(for: .voluntary, isSubscribed: true)
+                == "Your subscription is active. Restore Purchases can confirm it on this Apple Account."
+        )
+    }
+
+    @Test("Subscribed product ID is read from existing store status")
+    func subscribedProductIDFromStoreStatus() async {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.entitlementsAfterRestore = [
+            SubscriptionEntitlement(productID: .yearly, expirationDate: frozenNow.addingTimeInterval(86_400), revocationDate: nil)
+        ]
+        let model = PaywallModel(store: makeStore(commerce))
+        await model.restorePurchases()
+        #expect(model.subscribedProductID == .yearly)
+        #expect(model.isSubscribed)
     }
 
     @Test("Price text uses StoreKit displayPrice only")

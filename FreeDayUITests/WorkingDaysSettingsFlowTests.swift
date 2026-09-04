@@ -56,6 +56,22 @@ final class WorkingDaysSettingsFlowTests: XCTestCase {
         XCTAssertEqual(switchValue("settings-work-sunday"), "0")
     }
 
+    func testVoluntaryProFromSettingsDoesNotClaimTrialEnded() {
+        openSettings()
+        let pro = app.buttons["settings-freeday-pro"]
+        XCTAssertTrue(pro.waitForExistence(timeout: 2))
+        XCTAssertTrue(pro.label.contains("Upgrade to FreeDay Pro"))
+        pro.tap()
+
+        let headline = app.staticTexts["paywall-headline"]
+        XCTAssertTrue(headline.waitForExistence(timeout: 4))
+        XCTAssertEqual(headline.label, "Upgrade to FreeDay Pro")
+        XCTAssertFalse(app.staticTexts["Your 30-day free access has ended"].exists)
+        XCTAssertTrue(app.staticTexts["Subscribe now for uninterrupted full access after your 30-day initial access period."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["paywall-restore"].exists)
+        XCTAssertTrue(app.buttons["paywall-subscribe-monthly"].exists || app.staticTexts["Plans aren't available right now."].exists)
+    }
+
     private func openSettings() {
         tapTab("Home")
         let settings = app.buttons["home-settings"]

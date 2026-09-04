@@ -28,6 +28,13 @@ final class PaywallModel {
         store.isSubscribed
     }
 
+    var subscribedProductID: SubscriptionProductID? {
+        if case .subscribed(let productID, _) = store.status {
+            return productID
+        }
+        return nil
+    }
+
     init(store: SubscriptionStore) {
         self.store = store
         monthly = store.monthlyProduct
