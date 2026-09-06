@@ -56,7 +56,7 @@ struct ProPaywallView: View {
                 .freeDayContentWidth()
             }
             .background(FreeDayColor.canvas.ignoresSafeArea())
-            .navigationTitle(String(localized: "FreeDay Pro", comment: "Paywall title"))
+            .navigationTitle(String(localized: "FreeWorkDates Pro", comment: "Paywall title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -119,7 +119,7 @@ struct ProPaywallView: View {
                     Text(
                         model.subscribedProductID == id
                             ? String(localized: "Current plan", comment: "Paywall current subscribed plan")
-                            : String(localized: "Included in FreeDay Pro", comment: "Paywall other plan while subscribed")
+                            : String(localized: "Included in FreeWorkDates Pro", comment: "Paywall other plan while subscribed")
                     )
                     .font(FreeDayFont.body)
                     .foregroundStyle(FreeDayColor.muted)

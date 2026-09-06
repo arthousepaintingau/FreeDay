@@ -73,7 +73,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("FreeDay")
+                Text("FreeWorkDates")
                     .font(FreeDayFont.headline)
                     .foregroundStyle(FreeDayColor.ink)
             }

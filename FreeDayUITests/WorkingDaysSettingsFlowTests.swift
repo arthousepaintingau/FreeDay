@@ -60,12 +60,12 @@ final class WorkingDaysSettingsFlowTests: XCTestCase {
         openSettings()
         let pro = app.buttons["settings-freeday-pro"]
         XCTAssertTrue(pro.waitForExistence(timeout: 2))
-        XCTAssertTrue(pro.label.contains("Upgrade to FreeDay Pro"))
+        XCTAssertTrue(pro.label.contains("Upgrade to FreeWorkDates Pro"))
         pro.tap()
 
         let headline = app.staticTexts["paywall-headline"]
         XCTAssertTrue(headline.waitForExistence(timeout: 4))
-        XCTAssertEqual(headline.label, "Upgrade to FreeDay Pro")
+        XCTAssertEqual(headline.label, "Upgrade to FreeWorkDates Pro")
         XCTAssertFalse(app.staticTexts["Your 30-day free access has ended"].exists)
         XCTAssertTrue(app.staticTexts["Subscribe now for uninterrupted full access after your 30-day initial access period."].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["paywall-restore"].exists)

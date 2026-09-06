@@ -21,14 +21,14 @@ struct PaywallModelTests {
     @Test("Headline and explanation match the ended-trial copy")
     func headlineAndExplanation() {
         #expect(PaywallCopy.headline == "Your 30-day free access has ended")
-        #expect(PaywallCopy.explanation == "A Pro subscription is required to continue using FreeDay.")
+        #expect(PaywallCopy.explanation == "A Pro subscription is required to continue using FreeWorkDates.")
         #expect(PaywallCopy.headline(for: .expiredTrial, isSubscribed: false) == PaywallCopy.headline)
         #expect(PaywallCopy.explanation(for: .expiredTrial, isSubscribed: false) == PaywallCopy.explanation)
     }
 
     @Test("Voluntary trial copy does not claim the trial has ended")
     func voluntaryTrialCopy() {
-        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: false) == "Upgrade to FreeDay Pro")
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: false) == "Upgrade to FreeWorkDates Pro")
         #expect(
             PaywallCopy.explanation(for: .voluntary, isSubscribed: false)
                 == "Subscribe now for uninterrupted full access after your 30-day initial access period."
@@ -38,8 +38,8 @@ struct PaywallModelTests {
 
     @Test("Subscribed copy does not ask the user to buy again")
     func subscribedCopy() {
-        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: true) == "You're subscribed to FreeDay Pro.")
-        #expect(PaywallCopy.headline(for: .expiredTrial, isSubscribed: true) == "You're subscribed to FreeDay Pro.")
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: true) == "You're subscribed to FreeWorkDates Pro.")
+        #expect(PaywallCopy.headline(for: .expiredTrial, isSubscribed: true) == "You're subscribed to FreeWorkDates Pro.")
         #expect(
             PaywallCopy.explanation(for: .voluntary, isSubscribed: true)
                 == "Your subscription is active. Restore Purchases can confirm it on this Apple Account."
@@ -100,7 +100,7 @@ struct PaywallModelTests {
         await model.purchaseMonthly()
         #expect(commerce.purchased == [.monthly])
         #expect(model.isSubscribed)
-        #expect(model.feedback == .success("You're subscribed to FreeDay Pro."))
+        #expect(model.feedback == .success("You're subscribed to FreeWorkDates Pro."))
         #expect(model.activity == .idle)
     }
 

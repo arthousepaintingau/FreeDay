@@ -32,13 +32,13 @@ enum PaywallCopy {
 
     static func headline(for presentation: PaywallPresentation, isSubscribed: Bool) -> String {
         if isSubscribed {
-            return String(localized: "You're subscribed to FreeDay Pro.", comment: "Paywall headline when already subscribed")
+            return String(localized: "You're subscribed to FreeWorkDates Pro.", comment: "Paywall headline when already subscribed")
         }
         switch presentation {
         case .expiredTrial:
             return String(localized: "Your 30-day free access has ended", comment: "Paywall headline")
         case .voluntary:
-            return String(localized: "Upgrade to FreeDay Pro", comment: "Paywall headline from Settings during trial")
+            return String(localized: "Upgrade to FreeWorkDates Pro", comment: "Paywall headline from Settings during trial")
         }
     }
 
@@ -52,7 +52,7 @@ enum PaywallCopy {
         switch presentation {
         case .expiredTrial:
             return String(
-                localized: "A Pro subscription is required to continue using FreeDay.",
+                localized: "A Pro subscription is required to continue using FreeWorkDates.",
                 comment: "Paywall explanation"
             )
         case .voluntary:
@@ -91,7 +91,7 @@ enum PaywallCopy {
         switch outcome {
         case .success:
             if isSubscribed {
-                return .success(String(localized: "You're subscribed to FreeDay Pro.", comment: "Paywall purchase success"))
+                return .success(String(localized: "You're subscribed to FreeWorkDates Pro.", comment: "Paywall purchase success"))
             }
             return .failure(String(localized: "We couldn't confirm this subscription.", comment: "Paywall purchase unverified success"))
         case .userCancelled:

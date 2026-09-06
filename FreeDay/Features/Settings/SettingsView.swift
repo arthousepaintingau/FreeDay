@@ -31,7 +31,7 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: FreeDaySpacing.xs) {
                     FreeDaySectionHeader(
-                        title: String(localized: "FreeDay Pro", comment: "Settings section")
+                        title: String(localized: "FreeWorkDates Pro", comment: "Settings section")
                     )
                     Text(proSectionCaption)
                         .font(FreeDayFont.caption)
@@ -99,30 +99,30 @@ struct SettingsView: View {
 
     private var proRowTitle: String {
         if isSubscribed {
-            String(localized: "View FreeDay Pro", comment: "Settings row when already subscribed")
+            String(localized: "View FreeWorkDates Pro", comment: "Settings row when already subscribed")
         } else {
-            String(localized: "Upgrade to FreeDay Pro", comment: "Settings row during trial")
+            String(localized: "Upgrade to FreeWorkDates Pro", comment: "Settings row during trial")
         }
     }
 
     private var proSectionCaption: String {
         if isSubscribed {
             String(
-                localized: "View your FreeDay Pro plans. Restore Purchases is available on the next screen.",
-                comment: "FreeDay Pro settings explanation when subscribed"
+                localized: "View your FreeWorkDates Pro plans. Restore Purchases is available on the next screen.",
+                comment: "FreeWorkDates Pro settings explanation when subscribed"
             )
         } else {
             String(
                 localized: "Optional during your 30-day access period. View plans whenever you like. Restore Purchases is available on the next screen.",
-                comment: "FreeDay Pro settings explanation during trial"
+                comment: "FreeWorkDates Pro settings explanation during trial"
             )
         }
     }
 
     private var proRowHint: String {
         String(
-            localized: "Opens FreeDay Pro plans and Restore Purchases",
-            comment: "VoiceOver hint for FreeDay Pro settings row"
+            localized: "Opens FreeWorkDates Pro plans and Restore Purchases",
+            comment: "VoiceOver hint for FreeWorkDates Pro settings row"
         )
     }
 
