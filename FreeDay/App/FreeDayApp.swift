@@ -16,6 +16,7 @@ struct FreeDayApp: App {
         WindowGroup {
             AppRootView()
                 .environment(workWeek)
+                .environment(SubscriptionStore.shared)
         }
         .modelContainer(Persistence.containerForCurrentProcess())
     }

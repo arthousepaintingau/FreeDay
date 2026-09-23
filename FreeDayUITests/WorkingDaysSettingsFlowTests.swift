@@ -70,6 +70,12 @@ final class WorkingDaysSettingsFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Subscribe now for uninterrupted full access after your 30-day initial access period."].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["paywall-restore"].exists)
         XCTAssertTrue(app.buttons["paywall-subscribe-monthly"].exists || app.staticTexts["Plans aren't available right now."].exists)
+        XCTAssertTrue(app.staticTexts["paywall-auto-renew"].exists)
+        XCTAssertEqual(app.staticTexts["paywall-auto-renew"].label, "Subscriptions automatically renew unless cancelled.")
+        XCTAssertTrue(app.staticTexts["paywall-manage-subscription"].exists)
+        XCTAssertTrue(app.buttons["paywall-privacy-policy"].exists)
+        XCTAssertTrue(app.buttons["paywall-terms-of-use"].exists)
+        XCTAssertTrue(app.buttons["paywall-close"].exists)
     }
 
     private func openSettings() {

@@ -156,4 +156,57 @@ struct PaywallModelTests {
         #expect(!model.isSubscribed)
         #expect(model.feedback == .failure("No subscription was found to restore."))
     }
+
+    @Test("Privacy Policy URL is the published FreeWorkDates page")
+    func privacyPolicyURLIsCorrect() {
+        #expect(
+            PaywallCopy.privacyPolicyURL.absoluteString
+                == "https://arthousepaintingau.github.io/FreeDay/privacy-policy.html"
+        )
+    }
+
+    @Test("Terms of Use URL is the published FreeWorkDates page")
+    func termsOfUseURLIsCorrect() {
+        #expect(
+            PaywallCopy.termsOfUseURL.absoluteString
+                == "https://arthousepaintingau.github.io/FreeDay/terms-of-use.html"
+        )
+    }
+
+    @Test("Auto-renew and Apple Account management disclosures are present")
+    func subscriptionDisclosuresArePresent() {
+        #expect(PaywallCopy.autoRenewDisclosure == "Subscriptions automatically renew unless cancelled.")
+        #expect(PaywallCopy.autoRenewDisclosure.localizedCaseInsensitiveContains("automatically renew"))
+        #expect(PaywallCopy.autoRenewDisclosure.localizedCaseInsensitiveContains("cancelled"))
+        #expect(
+            PaywallCopy.subscriptionManagementDisclosure
+                == "You can manage or cancel your subscription in your Apple Account subscription settings."
+        )
+        #expect(PaywallCopy.subscriptionManagementDisclosure.localizedCaseInsensitiveContains("Apple Account"))
+        #expect(PaywallCopy.subscriptionManagementDisclosure.localizedCaseInsensitiveContains("cancel"))
+    }
+
+    @Test("Paywall still names monthly and yearly plans without changing Product IDs")
+    func monthlyAndYearlyPlansKeepExistingProductIDs() {
+        #expect(PaywallCopy.planTitle(for: .monthly) == "Monthly")
+        #expect(PaywallCopy.planTitle(for: .yearly) == "Yearly")
+        #expect(PaywallCopy.billingPeriod(for: .monthly) == "Billed monthly")
+        #expect(PaywallCopy.billingPeriod(for: .yearly) == "Billed yearly")
+        #expect(SubscriptionProductID.monthly.rawValue == "app.freeday.FreeDay.monthly")
+        #expect(SubscriptionProductID.yearly.rawValue == "app.freeday.FreeDay.yearly")
+        #expect(PaywallCopy.priceText(for: monthlyProduct(price: "A$9.99")) == "A$9.99")
+        #expect(PaywallCopy.priceText(for: yearlyProduct(price: "A$79.99")) == "A$79.99")
+    }
+
+    @Test("Close is hidden on the locked paywall and kept on the Settings paywall")
+    func closeButtonOnlyOnVoluntaryPaywall() {
+        #expect(!PaywallCopy.showsCloseButton(for: .expiredTrial))
+        #expect(PaywallCopy.showsCloseButton(for: .voluntary))
+    }
+
+    @Test("Restore Purchases still reports success and empty results")
+    func restorePurchasesRemainsAvailable() {
+        #expect(PaywallCopy.restoreFeedback(isSubscribed: true) == .success("Purchases restored."))
+        #expect(PaywallCopy.restoreFeedback(isSubscribed: false) == .failure("No subscription was found to restore."))
+    }
 }

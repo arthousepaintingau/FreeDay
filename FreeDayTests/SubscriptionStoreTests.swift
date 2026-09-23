@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 @testable import FreeDay
 import Testing
 
@@ -118,6 +119,46 @@ struct SubscriptionStoreTests {
         #expect(store.isSubscribed)
     }
 
+    @Test("Purchase publishes an observable subscription change")
+    func purchasePublishesObservableSubscriptionChange() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.entitlementsAfterPurchase = [monthly()]
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        await store.startAndRefresh()
+        #expect(!store.isSubscribed)
+
+        let didChange = ObservationChangeFlag()
+        withObservationTracking {
+            _ = store.isSubscribed
+        } onChange: {
+            didChange.value = true
+        }
+
+        _ = try await store.purchaseMonthly()
+        #expect(store.isSubscribed)
+        #expect(didChange.value)
+    }
+
+    @Test("Restore publishes an observable subscription change")
+    func restorePublishesObservableSubscriptionChange() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.entitlementsAfterRestore = [yearly()]
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        await store.startAndRefresh()
+        #expect(!store.isSubscribed)
+
+        let didChange = ObservationChangeFlag()
+        withObservationTracking {
+            _ = store.isSubscribed
+        } onChange: {
+            didChange.value = true
+        }
+
+        try await store.restorePurchases()
+        #expect(store.isSubscribed)
+        #expect(didChange.value)
+    }
+
     @Test("Restore purchases syncs then refreshes entitlements")
     func restorePurchasesSyncsThenRefreshes() async throws {
         let commerce = FakeSubscriptionCommerce()
@@ -172,6 +213,10 @@ struct SubscriptionStoreTests {
         #expect(store.monthlyProduct?.id == .monthly)
         #expect(store.yearlyProduct?.id == .yearly)
     }
+}
+
+private final class ObservationChangeFlag: @unchecked Sendable {
+    var value = false
 }
 
 final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable {

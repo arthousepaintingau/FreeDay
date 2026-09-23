@@ -49,6 +49,8 @@ struct ProPaywallView: View {
                     .disabled(model.isBusy)
                     .accessibilityIdentifier("paywall-restore")
 
+                    disclosure
+                    legalLinks
                     feedback
                 }
                 .padding(.horizontal, FreeDaySpacing.screen)
@@ -59,11 +61,14 @@ struct ProPaywallView: View {
             .navigationTitle(String(localized: "FreeWorkDates Pro", comment: "Paywall title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "Close", comment: "Close paywall")) {
-                        dismiss()
+                if PaywallCopy.showsCloseButton(for: presentation) {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(String(localized: "Close", comment: "Close paywall")) {
+                            dismiss()
+                        }
+                        .disabled(model.activity == .purchasing(.monthly) || model.activity == .purchasing(.yearly) || model.activity == .restoring)
+                        .accessibilityIdentifier("paywall-close")
                     }
-                    .disabled(model.activity == .purchasing(.monthly) || model.activity == .purchasing(.yearly) || model.activity == .restoring)
                 }
             }
         }
@@ -115,6 +120,11 @@ struct ProPaywallView: View {
                         .foregroundStyle(FreeDayColor.muted)
                 }
 
+                Text(PaywallCopy.billingPeriod(for: id))
+                    .font(FreeDayFont.body)
+                    .foregroundStyle(FreeDayColor.muted)
+                    .accessibilityIdentifier(id == .monthly ? "paywall-monthly-period" : "paywall-yearly-period")
+
                 if model.isSubscribed {
                     Text(
                         model.subscribedProductID == id
@@ -144,6 +154,62 @@ struct ProPaywallView: View {
                 }
             }
         }
+    }
+
+    private var disclosure: some View {
+        VStack(alignment: .leading, spacing: FreeDaySpacing.xs) {
+            Text(PaywallCopy.autoRenewDisclosure)
+                .font(FreeDayFont.caption)
+                .foregroundStyle(FreeDayColor.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("paywall-auto-renew")
+
+            Text(PaywallCopy.subscriptionManagementDisclosure)
+                .font(FreeDayFont.caption)
+                .foregroundStyle(FreeDayColor.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("paywall-manage-subscription")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var legalLinks: some View {
+        FreeDayCard(padding: 0) {
+            VStack(spacing: 0) {
+                legalLink(
+                    title: String(localized: "Privacy Policy", comment: "Paywall legal link"),
+                    url: PaywallCopy.privacyPolicyURL,
+                    identifier: "paywall-privacy-policy"
+                )
+                Divider()
+                    .background(FreeDayColor.hairline)
+                legalLink(
+                    title: String(localized: "Terms of Use", comment: "Paywall legal link"),
+                    url: PaywallCopy.termsOfUseURL,
+                    identifier: "paywall-terms-of-use"
+                )
+            }
+        }
+    }
+
+    private func legalLink(title: String, url: URL, identifier: String) -> some View {
+        Link(destination: url) {
+            HStack {
+                Text(title)
+                    .font(FreeDayFont.body)
+                    .foregroundStyle(FreeDayColor.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(FreeDayColor.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, FreeDaySpacing.md)
+            .padding(.vertical, FreeDaySpacing.sm)
+            .frame(minHeight: FreeDaySpacing.touch)
+            .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier(identifier)
     }
 
     @ViewBuilder

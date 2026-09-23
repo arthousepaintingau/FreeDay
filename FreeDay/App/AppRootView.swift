@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppRootView: View {
     @Environment(WorkWeekStore.self) private var workWeek
+    @Environment(SubscriptionStore.self) private var subscriptions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var tab: AppTab = .home
@@ -11,7 +12,7 @@ struct AppRootView: View {
 
     var body: some View {
         let access = ProAccessStore()
-        if access.hasFullAccess(isSubscribed: SubscriptionStore.shared.isSubscribed) {
+        if access.hasFullAccess(isSubscribed: subscriptions.isSubscribed) {
             unlockedApp
         } else {
             ProPaywallView(presentation: .expiredTrial)
@@ -132,4 +133,5 @@ struct AppRootView: View {
     AppRootView()
         .modelContainer(Persistence.previewContainer())
         .environment(WorkWeekStore(defaults: UserDefaults(suiteName: "au.freeday.preview.workweek") ?? .standard))
+        .environment(SubscriptionStore.shared)
 }

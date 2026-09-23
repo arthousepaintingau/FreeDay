@@ -16,9 +16,11 @@ struct ProjectDetailView: View {
     var body: some View {
         let engine = environment.scheduling
         let formatters = DateFormatters(workingCalendar: environment.workingCalendar)
-        let schedule = project.startDate.map {
-            engine.workingDates(start: $0, duration: project.durationInWorkingDays)
-        } ?? []
+        let schedule = ProjectDetailDisplay.workingSchedule(
+            startDate: project.startDate,
+            durationInWorkingDays: project.durationInWorkingDays,
+            engine: engine
+        )
 
         ScrollView {
             VStack(alignment: .leading, spacing: FreeDaySpacing.lg) {
@@ -39,7 +41,7 @@ struct ProjectDetailView: View {
                     value: FreeDayDurationCopy.days(project.durationInWorkingDays)
                 )
 
-                if let start = project.startDate, let end = schedule.last {
+                if let start = schedule.first, let end = schedule.last {
                     FreeDayLabeledValue(
                         title: String(localized: "Dates", comment: "Project detail date range"),
                         value: formatters.fullRange(start: start, end: end),
@@ -173,5 +175,17 @@ struct ProjectDetailView: View {
             try? await Task.sleep(for: .seconds(2))
             toast = nil
         }
+    }
+}
+
+/// Project Details date range. Uses the same working-day snap as the scheduler; does not rewrite storage.
+enum ProjectDetailDisplay {
+    static func workingSchedule(
+        startDate: Date?,
+        durationInWorkingDays: Int,
+        engine: SchedulingEngine
+    ) -> [Date] {
+        guard let startDate else { return [] }
+        return engine.workingDates(start: startDate, duration: durationInWorkingDays)
     }
 }

@@ -84,6 +84,37 @@ enum PaywallCopy {
         return price.isEmpty ? nil : price
     }
 
+    /// Billing period from the existing monthly/yearly product. Never invents a price.
+    static func billingPeriod(for id: SubscriptionProductID) -> String {
+        switch id {
+        case .monthly:
+            String(localized: "Billed monthly", comment: "Paywall monthly billing period")
+        case .yearly:
+            String(localized: "Billed yearly", comment: "Paywall yearly billing period")
+        }
+    }
+
+    static var autoRenewDisclosure: String {
+        String(
+            localized: "Subscriptions automatically renew unless cancelled.",
+            comment: "Paywall auto-renew disclosure"
+        )
+    }
+
+    static var subscriptionManagementDisclosure: String {
+        String(
+            localized: "You can manage or cancel your subscription in your Apple Account subscription settings.",
+            comment: "Paywall Apple subscription management disclosure"
+        )
+    }
+
+    static let privacyPolicyURL = URL(string: "https://arthousepaintingau.github.io/FreeDay/privacy-policy.html")!
+    static let termsOfUseURL = URL(string: "https://arthousepaintingau.github.io/FreeDay/terms-of-use.html")!
+
+    static func showsCloseButton(for presentation: PaywallPresentation) -> Bool {
+        presentation == .voluntary
+    }
+
     static func purchaseFeedback(
         _ outcome: PurchaseOutcome,
         isSubscribed: Bool
