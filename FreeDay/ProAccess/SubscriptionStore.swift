@@ -65,11 +65,23 @@ final class SubscriptionStore {
     }
 
     private func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome {
-        let outcome = try await commerce.purchase(id)
+        let (outcome, entitlement) = try await commerce.purchase(id)
         if outcome == .success {
+            applyVerifiedPurchaseEntitlement(entitlement)
             await refreshEntitlements()
+            if !isSubscribed {
+                applyVerifiedPurchaseEntitlement(entitlement)
+            }
         }
         return outcome
+    }
+
+    private func applyVerifiedPurchaseEntitlement(_ entitlement: SubscriptionEntitlement?) {
+        guard let entitlement else { return }
+        let next = Self.status(from: [entitlement], now: now())
+        if next != status {
+            status = next
+        }
     }
 
     private func listenForUpdatesIfNeeded() {

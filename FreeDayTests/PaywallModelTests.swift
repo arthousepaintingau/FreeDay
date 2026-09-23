@@ -104,6 +104,22 @@ struct PaywallModelTests {
         #expect(model.activity == .idle)
     }
 
+    @Test("Verified purchase shows subscribed state even when the ledger is still empty")
+    func verifiedPurchaseShowsSubscribedWhenLedgerIsEmpty() async {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.products = [monthlyProduct()]
+        commerce.purchasedEntitlement = SubscriptionEntitlement(
+            productID: .monthly,
+            expirationDate: frozenNow.addingTimeInterval(86_400),
+            revocationDate: nil
+        )
+        let model = PaywallModel(store: makeStore(commerce))
+        await model.purchaseMonthly()
+        #expect(commerce.entitlements.isEmpty)
+        #expect(model.isSubscribed)
+        #expect(model.feedback == .success("You're subscribed to FreeWorkDates Pro."))
+    }
+
     @Test("Cancelled purchase stays quiet")
     func cancelledPurchaseStaysQuiet() async {
         let commerce = FakeSubscriptionCommerce()
@@ -132,6 +148,21 @@ struct PaywallModelTests {
         await model.purchaseMonthly()
         #expect(model.feedback == .failure("This plan isn't available right now."))
         #expect(!model.isSubscribed)
+    }
+
+    @Test("Unverified purchase does not report subscribed")
+    func unverifiedPurchaseDoesNotReportSubscribed() async {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchaseError = .unverified
+        commerce.purchasedEntitlement = SubscriptionEntitlement(
+            productID: .monthly,
+            expirationDate: frozenNow.addingTimeInterval(86_400),
+            revocationDate: nil
+        )
+        let model = PaywallModel(store: makeStore(commerce))
+        await model.purchaseMonthly()
+        #expect(!model.isSubscribed)
+        #expect(model.feedback == .failure("We couldn't verify this purchase."))
     }
 
     @Test("Restore with an entitlement succeeds")

@@ -115,8 +115,117 @@ struct SubscriptionStoreTests {
         let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
+        let ledgerCallsBeforePurchase = commerce.currentEntitlementsCallCount
         _ = try await store.purchaseMonthly()
         #expect(store.isSubscribed)
+        #expect(commerce.currentEntitlementsCallCount == ledgerCallsBeforePurchase + 1)
+    }
+
+    @Test("Verified purchase activates immediately when current entitlements are still empty")
+    func verifiedPurchaseActivatesImmediatelyWhenLedgerIsEmpty() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        #expect(!store.isSubscribed)
+        #expect(commerce.entitlements.isEmpty)
+
+        let outcome = try await store.purchaseMonthly()
+
+        #expect(outcome == .success)
+        #expect(store.isSubscribed)
+        #expect(store.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+        #expect(commerce.entitlements.isEmpty)
+        #expect(commerce.currentEntitlementsCallCount == 1)
+    }
+
+    @Test("Unverified purchase does not activate Pro")
+    func unverifiedPurchaseDoesNotActivatePro() async {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchaseError = .unverified
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+
+        do {
+            _ = try await store.purchaseMonthly()
+            Issue.record("Expected unverified purchase to throw")
+        } catch {
+            #expect(error as? SubscriptionError == .unverified)
+        }
+        #expect(!store.isSubscribed)
+        #expect(store.status == .notSubscribed)
+        #expect(commerce.currentEntitlementsCallCount == 0)
+    }
+
+    @Test("Cancelled purchase does not activate Pro")
+    func cancelledPurchaseDoesNotActivatePro() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchaseOutcome = .userCancelled
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+
+        let outcome = try await store.purchaseMonthly()
+
+        #expect(outcome == .userCancelled)
+        #expect(!store.isSubscribed)
+        #expect(commerce.currentEntitlementsCallCount == 0)
+    }
+
+    @Test("Pending purchase does not activate Pro")
+    func pendingPurchaseDoesNotActivatePro() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchaseOutcome = .pending
+        commerce.purchasedEntitlement = yearly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+
+        let outcome = try await store.purchaseYearly()
+
+        #expect(outcome == .pending)
+        #expect(!store.isSubscribed)
+        #expect(commerce.currentEntitlementsCallCount == 0)
+    }
+
+    @Test("Purchase does not change expired-trial access rules")
+    func purchaseDoesNotChangeExpiredTrialAccessRules() async throws {
+        let suiteName = "au.freeday.tests.purchase.trial.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var gmt = Calendar(identifier: .gregorian)
+        gmt.timeZone = TimeZone(secondsFromGMT: 0)!
+        let trialStart = frozenNow
+        _ = ProAccessStore(defaults: defaults, now: { trialStart }, calendar: gmt)
+
+        let afterTrial = gmt.date(byAdding: .day, value: 30, to: trialStart)!.addingTimeInterval(1)
+        let access = ProAccessStore(defaults: defaults, now: { afterTrial }, calendar: gmt)
+        #expect(access.trialExpired)
+        #expect(!access.hasFullAccess(isSubscribed: false))
+
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        _ = try await store.purchaseMonthly()
+
+        #expect(store.isSubscribed)
+        #expect(access.trialExpired)
+        #expect(access.trialStartDate == trialStart)
+        #expect(access.hasFullAccess(isSubscribed: false) == false)
+        #expect(access.hasFullAccess(isSubscribed: store.isSubscribed))
+    }
+
+    @Test("Revoked or expired purchase entitlement does not activate Pro")
+    func revokedOrExpiredPurchaseEntitlementDoesNotActivatePro() async throws {
+        let revoked = FakeSubscriptionCommerce()
+        revoked.purchasedEntitlement = monthly(revoked: frozenNow)
+        let revokedStore = SubscriptionStore(commerce: revoked, now: { frozenNow })
+        _ = try await revokedStore.purchaseMonthly()
+        #expect(!revokedStore.isSubscribed)
+
+        let expired = FakeSubscriptionCommerce()
+        expired.purchasedEntitlement = monthly(expires: frozenNow)
+        let expiredStore = SubscriptionStore(commerce: expired, now: { frozenNow })
+        _ = try await expiredStore.purchaseMonthly()
+        #expect(!expiredStore.isSubscribed)
     }
 
     @Test("Purchase publishes an observable subscription change")
@@ -224,9 +333,11 @@ final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable 
     var entitlements: [SubscriptionEntitlement] = []
     var entitlementsAfterPurchase: [SubscriptionEntitlement]?
     var entitlementsAfterRestore: [SubscriptionEntitlement]?
+    var purchasedEntitlement: SubscriptionEntitlement?
     var purchased: [SubscriptionProductID] = []
     var restoreCount = 0
     var finishUnfinishedCount = 0
+    var currentEntitlementsCallCount = 0
     var purchaseOutcome: PurchaseOutcome = .success
     var purchaseError: SubscriptionError?
     var restoreError: SubscriptionError?
@@ -244,19 +355,24 @@ final class FakeSubscriptionCommerce: SubscriptionCommerce, @unchecked Sendable 
         products
     }
 
-    func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome {
+    func purchase(_ id: SubscriptionProductID) async throws -> (PurchaseOutcome, SubscriptionEntitlement?) {
         purchased.append(id)
         if let purchaseError {
             throw purchaseError
         }
+        if purchaseOutcome != .success {
+            return (purchaseOutcome, nil)
+        }
         if let entitlementsAfterPurchase {
             entitlements = entitlementsAfterPurchase
         }
-        return purchaseOutcome
+        let entitlement = purchasedEntitlement ?? entitlementsAfterPurchase?.first
+        return (.success, entitlement)
     }
 
     func currentEntitlements() async -> [SubscriptionEntitlement] {
-        entitlements
+        currentEntitlementsCallCount += 1
+        return entitlements
     }
 
     func transactionUpdates() -> AsyncStream<Void> {

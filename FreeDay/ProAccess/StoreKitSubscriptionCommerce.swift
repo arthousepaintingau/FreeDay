@@ -3,7 +3,7 @@ import StoreKit
 
 protocol SubscriptionCommerce: Sendable {
     func loadProducts() async throws -> [LoadedSubscriptionProduct]
-    func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome
+    func purchase(_ id: SubscriptionProductID) async throws -> (PurchaseOutcome, SubscriptionEntitlement?)
     func currentEntitlements() async -> [SubscriptionEntitlement]
     func transactionUpdates() -> AsyncStream<Void>
     func restore() async throws
@@ -26,7 +26,7 @@ struct StoreKitSubscriptionCommerce: SubscriptionCommerce {
         }
     }
 
-    func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome {
+    func purchase(_ id: SubscriptionProductID) async throws -> (PurchaseOutcome, SubscriptionEntitlement?) {
         let storeProducts = try await Product.products(for: [id.rawValue])
         guard let product = storeProducts.first else {
             throw SubscriptionError.productUnavailable(id)
@@ -36,14 +36,15 @@ struct StoreKitSubscriptionCommerce: SubscriptionCommerce {
         switch result {
         case .success(let verification):
             let transaction = try Self.verified(verification)
+            let entitlement = SubscriptionEntitlement(transaction: transaction)
             await transaction.finish()
-            return .success
+            return (.success, entitlement)
         case .userCancelled:
-            return .userCancelled
+            return (.userCancelled, nil)
         case .pending:
-            return .pending
+            return (.pending, nil)
         @unknown default:
-            return .pending
+            return (.pending, nil)
         }
     }
 
