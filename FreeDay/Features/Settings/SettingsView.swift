@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(WorkWeekStore.self) private var store
+    @Environment(SubscriptionStore.self) private var subscriptions
     @State private var showPaywall = false
 
     var body: some View {
@@ -94,7 +95,7 @@ struct SettingsView: View {
     private static let termsOfUseURL = URL(string: "https://arthousepaintingau.github.io/FreeDay/terms-of-use.html")!
 
     private var isSubscribed: Bool {
-        SubscriptionStore.shared.isSubscribed
+        subscriptions.isSubscribed
     }
 
     private var proRowTitle: String {
