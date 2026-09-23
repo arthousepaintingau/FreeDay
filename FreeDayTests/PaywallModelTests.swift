@@ -120,6 +120,27 @@ struct PaywallModelTests {
         #expect(model.feedback == .success("You're subscribed to FreeWorkDates Pro."))
     }
 
+    @Test("Paywall stays subscribed after a later empty entitlement refresh")
+    func paywallStaysSubscribedAfterEmptyLedgerRefresh() async {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.products = [monthlyProduct()]
+        commerce.purchasedEntitlement = SubscriptionEntitlement(
+            productID: .monthly,
+            expirationDate: frozenNow.addingTimeInterval(86_400),
+            revocationDate: nil
+        )
+        let store = makeStore(commerce)
+        let model = PaywallModel(store: store)
+        await model.purchaseMonthly()
+        #expect(model.isSubscribed)
+
+        await store.startAndRefresh()
+
+        #expect(model.isSubscribed)
+        #expect(model.subscribedProductID == .monthly)
+        #expect(PaywallCopy.headline(for: .voluntary, isSubscribed: model.isSubscribed) == "You're subscribed to FreeWorkDates Pro.")
+    }
+
     @Test("Cancelled purchase stays quiet")
     func cancelledPurchaseStaysQuiet() async {
         let commerce = FakeSubscriptionCommerce()

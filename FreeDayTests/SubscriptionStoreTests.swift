@@ -138,6 +138,77 @@ struct SubscriptionStoreTests {
         #expect(commerce.currentEntitlementsCallCount == 1)
     }
 
+    @Test("Empty currentEntitlements refresh does not erase a verified purchase")
+    func emptyLedgerRefreshDoesNotEraseVerifiedPurchase() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        _ = try await store.purchaseMonthly()
+        #expect(store.isSubscribed)
+        #expect(commerce.entitlements.isEmpty)
+
+        await store.startAndRefresh()
+
+        #expect(store.isSubscribed)
+        #expect(store.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+        #expect(commerce.entitlements.isEmpty)
+    }
+
+    @Test("Transaction updates with an empty ledger do not erase a verified purchase")
+    func transactionUpdatesWithEmptyLedgerDoNotEraseVerifiedPurchase() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        await store.startAndRefresh()
+        _ = try await store.purchaseMonthly()
+        #expect(store.isSubscribed)
+
+        commerce.emitUpdate()
+
+        var stillSubscribed = true
+        for _ in 0..<20 {
+            if !store.isSubscribed {
+                stillSubscribed = false
+                break
+            }
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(stillSubscribed)
+        #expect(store.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+    }
+
+    @Test("Active ledger entitlements still reconcile after a verified purchase")
+    func activeLedgerStillReconcilesAfterVerifiedPurchase() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        _ = try await store.purchaseMonthly()
+        #expect(store.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+
+        commerce.entitlements = [yearly()]
+        await store.startAndRefresh()
+
+        #expect(store.isSubscribed)
+        #expect(store.status == .subscribed(productID: .yearly, expirationDate: yearlyExpiry))
+    }
+
+    @Test("Settings subscribed copy follows a verified purchase that the ledger has not caught up to")
+    func settingsSubscribedCopyFollowsVerifiedPurchaseWhenLedgerIsEmpty() async throws {
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        _ = try await store.purchaseMonthly()
+        await store.startAndRefresh()
+
+        #expect(store.isSubscribed)
+        #expect(settingsProRowTitle(isSubscribed: store.isSubscribed) == "View FreeWorkDates Pro")
+        #expect(
+            settingsProCaption(isSubscribed: store.isSubscribed)
+                == "View your FreeWorkDates Pro plans. Restore Purchases is available on the next screen."
+        )
+    }
+
     @Test("Unverified purchase does not activate Pro")
     func unverifiedPurchaseDoesNotActivatePro() async {
         let commerce = FakeSubscriptionCommerce()
@@ -322,6 +393,17 @@ struct SubscriptionStoreTests {
         #expect(store.monthlyProduct?.id == .monthly)
         #expect(store.yearlyProduct?.id == .yearly)
     }
+}
+
+private func settingsProRowTitle(isSubscribed: Bool) -> String {
+    isSubscribed ? "View FreeWorkDates Pro" : "Upgrade to FreeWorkDates Pro"
+}
+
+private func settingsProCaption(isSubscribed: Bool) -> String {
+    if isSubscribed {
+        return "View your FreeWorkDates Pro plans. Restore Purchases is available on the next screen."
+    }
+    return "Optional during your 30-day access period. View plans whenever you like. Restore Purchases is available on the next screen."
 }
 
 private final class ObservationChangeFlag: @unchecked Sendable {

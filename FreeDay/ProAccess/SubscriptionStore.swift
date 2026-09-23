@@ -14,6 +14,9 @@ final class SubscriptionStore {
     private let commerce: any SubscriptionCommerce
     private let now: @Sendable () -> Date
     private var updatesTask: Task<Void, Never>?
+    /// Last verified purchase. `Transaction.currentEntitlements` can stay empty on TestFlight
+    /// immediately after buy; this grant must not be erased by that stale ledger.
+    private var verifiedPurchaseEntitlement: SubscriptionEntitlement?
 
     private(set) var products: [LoadedSubscriptionProduct] = []
     private(set) var status: SubscriptionStatus = .notSubscribed
@@ -67,13 +70,16 @@ final class SubscriptionStore {
     private func purchase(_ id: SubscriptionProductID) async throws -> PurchaseOutcome {
         let (outcome, entitlement) = try await commerce.purchase(id)
         if outcome == .success {
+            rememberVerifiedPurchase(entitlement)
             applyVerifiedPurchaseEntitlement(entitlement)
             await refreshEntitlements()
-            if !isSubscribed {
-                applyVerifiedPurchaseEntitlement(entitlement)
-            }
         }
         return outcome
+    }
+
+    private func rememberVerifiedPurchase(_ entitlement: SubscriptionEntitlement?) {
+        guard let entitlement, entitlement.isActive(at: now()) else { return }
+        verifiedPurchaseEntitlement = entitlement
     }
 
     private func applyVerifiedPurchaseEntitlement(_ entitlement: SubscriptionEntitlement?) {
@@ -108,10 +114,23 @@ final class SubscriptionStore {
 
     private func refreshEntitlements() async {
         let entitlements = await commerce.currentEntitlements()
-        let next = Self.status(from: entitlements, now: now())
+        let next = resolvedStatus(ledgerEntitlements: entitlements)
         if next != status {
             status = next
         }
+    }
+
+    /// Apple's ledger wins when it has an active entitlement. An empty or inactive
+    /// ledger must not replace a still-active verified purchase from this session.
+    private func resolvedStatus(ledgerEntitlements: [SubscriptionEntitlement]) -> SubscriptionStatus {
+        let ledgerStatus = Self.status(from: ledgerEntitlements, now: now())
+        if case .subscribed = ledgerStatus {
+            return ledgerStatus
+        }
+        if let verified = verifiedPurchaseEntitlement, verified.isActive(at: now()) {
+            return Self.status(from: [verified], now: now())
+        }
+        return ledgerStatus
     }
 
     static func status(
