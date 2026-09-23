@@ -22,6 +22,27 @@ struct SubscriptionStoreTests {
         SubscriptionEntitlement(productID: .yearly, expirationDate: expires, revocationDate: nil)
     }
 
+    private func isolatedDefaults() -> UserDefaults {
+        let suiteName = "au.freeday.tests.subscription.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+
+    private func makeStore(
+        _ commerce: FakeSubscriptionCommerce,
+        defaults: UserDefaults? = nil
+    ) -> SubscriptionStore {
+        SubscriptionStore(commerce: commerce, now: { frozenNow }, defaults: defaults ?? isolatedDefaults())
+    }
+
+    private func writePersisted(
+        _ record: VerifiedSubscriptionPersistence.Record,
+        to defaults: UserDefaults
+    ) {
+        defaults.set(try? JSONEncoder().encode(record), forKey: VerifiedSubscriptionPersistence.key)
+    }
+
     @Test("Product IDs match App Store Connect")
     func productIDsMatchAppStoreConnect() {
         #expect(SubscriptionProductID.monthly.rawValue == "app.freeday.FreeDay.monthly")
@@ -35,7 +56,7 @@ struct SubscriptionStoreTests {
     @Test("No entitlements means not subscribed")
     func noEntitlementsMeansNotSubscribed() async {
         let commerce = FakeSubscriptionCommerce()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
         #expect(store.status == .notSubscribed)
@@ -46,7 +67,7 @@ struct SubscriptionStoreTests {
         let commerce = FakeSubscriptionCommerce()
         let entitlement = monthly()
         commerce.entitlements = [entitlement]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(store.isSubscribed)
         #expect(store.status == .subscribed(productID: .monthly, expirationDate: entitlement.expirationDate))
@@ -57,7 +78,7 @@ struct SubscriptionStoreTests {
         let commerce = FakeSubscriptionCommerce()
         let entitlement = yearly()
         commerce.entitlements = [entitlement]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(store.isSubscribed)
         #expect(store.status == .subscribed(productID: .yearly, expirationDate: entitlement.expirationDate))
@@ -67,7 +88,7 @@ struct SubscriptionStoreTests {
     func revokedEntitlementDoesNotGrantAccess() async {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlements = [monthly(revoked: frozenNow)]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
         #expect(store.status == .notSubscribed)
@@ -77,7 +98,7 @@ struct SubscriptionStoreTests {
     func expiredEntitlementDoesNotGrantAccess() async {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlements = [monthly(expires: frozenNow)]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
     }
@@ -93,7 +114,7 @@ struct SubscriptionStoreTests {
     @Test("Purchase monthly uses the monthly product ID")
     func purchaseMonthlyUsesMonthlyID() async throws {
         let commerce = FakeSubscriptionCommerce()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         let outcome = try await store.purchaseMonthly()
         #expect(outcome == .success)
         #expect(commerce.purchased == [.monthly])
@@ -102,7 +123,7 @@ struct SubscriptionStoreTests {
     @Test("Purchase yearly uses the yearly product ID")
     func purchaseYearlyUsesYearlyID() async throws {
         let commerce = FakeSubscriptionCommerce()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         let outcome = try await store.purchaseYearly()
         #expect(outcome == .success)
         #expect(commerce.purchased == [.yearly])
@@ -112,7 +133,7 @@ struct SubscriptionStoreTests {
     func successfulPurchaseRefreshesEntitlements() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlementsAfterPurchase = [monthly()]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
         let ledgerCallsBeforePurchase = commerce.currentEntitlementsCallCount
@@ -125,7 +146,7 @@ struct SubscriptionStoreTests {
     func verifiedPurchaseActivatesImmediatelyWhenLedgerIsEmpty() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         #expect(!store.isSubscribed)
         #expect(commerce.entitlements.isEmpty)
 
@@ -142,7 +163,7 @@ struct SubscriptionStoreTests {
     func emptyLedgerRefreshDoesNotEraseVerifiedPurchase() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         _ = try await store.purchaseMonthly()
         #expect(store.isSubscribed)
         #expect(commerce.entitlements.isEmpty)
@@ -158,7 +179,7 @@ struct SubscriptionStoreTests {
     func transactionUpdatesWithEmptyLedgerDoNotEraseVerifiedPurchase() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         _ = try await store.purchaseMonthly()
         #expect(store.isSubscribed)
@@ -182,7 +203,7 @@ struct SubscriptionStoreTests {
     func activeLedgerStillReconcilesAfterVerifiedPurchase() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         _ = try await store.purchaseMonthly()
         #expect(store.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
 
@@ -197,7 +218,7 @@ struct SubscriptionStoreTests {
     func settingsSubscribedCopyFollowsVerifiedPurchaseWhenLedgerIsEmpty() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         _ = try await store.purchaseMonthly()
         await store.startAndRefresh()
 
@@ -211,10 +232,11 @@ struct SubscriptionStoreTests {
 
     @Test("Unverified purchase does not activate Pro")
     func unverifiedPurchaseDoesNotActivatePro() async {
+        let defaults = isolatedDefaults()
         let commerce = FakeSubscriptionCommerce()
         commerce.purchaseError = .unverified
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce, defaults: defaults)
 
         do {
             _ = try await store.purchaseMonthly()
@@ -225,6 +247,8 @@ struct SubscriptionStoreTests {
         #expect(!store.isSubscribed)
         #expect(store.status == .notSubscribed)
         #expect(commerce.currentEntitlementsCallCount == 0)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+        #expect(VerifiedSubscriptionPersistence.loadActive(from: defaults, now: frozenNow) == nil)
     }
 
     @Test("Cancelled purchase does not activate Pro")
@@ -232,7 +256,7 @@ struct SubscriptionStoreTests {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchaseOutcome = .userCancelled
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
 
         let outcome = try await store.purchaseMonthly()
 
@@ -246,7 +270,7 @@ struct SubscriptionStoreTests {
         let commerce = FakeSubscriptionCommerce()
         commerce.purchaseOutcome = .pending
         commerce.purchasedEntitlement = yearly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
 
         let outcome = try await store.purchaseYearly()
 
@@ -274,7 +298,7 @@ struct SubscriptionStoreTests {
 
         let commerce = FakeSubscriptionCommerce()
         commerce.purchasedEntitlement = monthly()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         _ = try await store.purchaseMonthly()
 
         #expect(store.isSubscribed)
@@ -288,13 +312,13 @@ struct SubscriptionStoreTests {
     func revokedOrExpiredPurchaseEntitlementDoesNotActivatePro() async throws {
         let revoked = FakeSubscriptionCommerce()
         revoked.purchasedEntitlement = monthly(revoked: frozenNow)
-        let revokedStore = SubscriptionStore(commerce: revoked, now: { frozenNow })
+        let revokedStore = makeStore(revoked)
         _ = try await revokedStore.purchaseMonthly()
         #expect(!revokedStore.isSubscribed)
 
         let expired = FakeSubscriptionCommerce()
         expired.purchasedEntitlement = monthly(expires: frozenNow)
-        let expiredStore = SubscriptionStore(commerce: expired, now: { frozenNow })
+        let expiredStore = makeStore(expired)
         _ = try await expiredStore.purchaseMonthly()
         #expect(!expiredStore.isSubscribed)
     }
@@ -303,7 +327,7 @@ struct SubscriptionStoreTests {
     func purchasePublishesObservableSubscriptionChange() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlementsAfterPurchase = [monthly()]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
 
@@ -323,7 +347,7 @@ struct SubscriptionStoreTests {
     func restorePublishesObservableSubscriptionChange() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlementsAfterRestore = [yearly()]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
 
@@ -343,7 +367,7 @@ struct SubscriptionStoreTests {
     func restorePurchasesSyncsThenRefreshes() async throws {
         let commerce = FakeSubscriptionCommerce()
         commerce.entitlementsAfterRestore = [yearly()]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         try await store.restorePurchases()
         #expect(commerce.restoreCount == 1)
@@ -354,7 +378,7 @@ struct SubscriptionStoreTests {
     @Test("Transaction updates refresh entitlements")
     func transactionUpdatesRefreshEntitlements() async {
         let commerce = FakeSubscriptionCommerce()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(!store.isSubscribed)
 
@@ -376,7 +400,7 @@ struct SubscriptionStoreTests {
     @Test("Start finishes unfinished verified transactions")
     func startFinishesUnfinishedVerifiedTransactions() async {
         let commerce = FakeSubscriptionCommerce()
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(commerce.finishUnfinishedCount == 1)
     }
@@ -388,10 +412,187 @@ struct SubscriptionStoreTests {
             LoadedSubscriptionProduct(id: .monthly, displayName: "Monthly", displayPrice: "$4.99"),
             LoadedSubscriptionProduct(id: .yearly, displayName: "Yearly", displayPrice: "$39.99"),
         ]
-        let store = SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let store = makeStore(commerce)
         await store.startAndRefresh()
         #expect(store.monthlyProduct?.id == .monthly)
         #expect(store.yearlyProduct?.id == .yearly)
+    }
+
+    @Test("Verified active purchase is persisted")
+    func verifiedActivePurchaseIsPersisted() async throws {
+        let defaults = isolatedDefaults()
+        let commerce = FakeSubscriptionCommerce()
+        commerce.purchasedEntitlement = monthly()
+        let store = makeStore(commerce, defaults: defaults)
+
+        _ = try await store.purchaseMonthly()
+
+        #expect(store.isSubscribed)
+        #expect(VerifiedSubscriptionPersistence.loadActive(from: defaults, now: frozenNow) == monthly())
+    }
+
+    @Test("Persisted verified entitlement survives a new store with an empty ledger")
+    func persistedEntitlementSurvivesProcessRestartWithEmptyLedger() async throws {
+        let defaults = isolatedDefaults()
+        let purchaseCommerce = FakeSubscriptionCommerce()
+        purchaseCommerce.purchasedEntitlement = monthly()
+        let original = makeStore(purchaseCommerce, defaults: defaults)
+        _ = try await original.purchaseMonthly()
+        #expect(original.isSubscribed)
+
+        let relaunchCommerce = FakeSubscriptionCommerce()
+        #expect(relaunchCommerce.entitlements.isEmpty)
+        let relaunched = makeStore(relaunchCommerce, defaults: defaults)
+
+        #expect(relaunched.isSubscribed)
+        #expect(relaunched.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+    }
+
+    @Test("Empty launch refresh does not wipe a valid persisted entitlement")
+    func emptyLaunchRefreshDoesNotWipePersistedEntitlement() async throws {
+        let defaults = isolatedDefaults()
+        let purchaseCommerce = FakeSubscriptionCommerce()
+        purchaseCommerce.purchasedEntitlement = monthly()
+        let original = makeStore(purchaseCommerce, defaults: defaults)
+        _ = try await original.purchaseMonthly()
+
+        let relaunchCommerce = FakeSubscriptionCommerce()
+        let relaunched = makeStore(relaunchCommerce, defaults: defaults)
+        await relaunched.startAndRefresh()
+
+        #expect(relaunched.isSubscribed)
+        #expect(relaunched.status == .subscribed(productID: .monthly, expirationDate: monthlyExpiry))
+        #expect(VerifiedSubscriptionPersistence.loadActive(from: defaults, now: frozenNow) == monthly())
+        #expect(relaunchCommerce.entitlements.isEmpty)
+    }
+
+    @Test("Active StoreKit ledger takes precedence over persisted fallback")
+    func activeLedgerTakesPrecedenceOverPersistedFallback() async {
+        let defaults = isolatedDefaults()
+        VerifiedSubscriptionPersistence.save(monthly(), to: defaults, now: frozenNow)
+
+        let commerce = FakeSubscriptionCommerce()
+        commerce.entitlements = [yearly()]
+        let store = makeStore(commerce, defaults: defaults)
+        await store.startAndRefresh()
+
+        #expect(store.isSubscribed)
+        #expect(store.status == .subscribed(productID: .yearly, expirationDate: yearlyExpiry))
+        #expect(VerifiedSubscriptionPersistence.loadActive(from: defaults, now: frozenNow) == yearly())
+    }
+
+    @Test("Expired persisted entitlement does not unlock Pro and is removed")
+    func expiredPersistedEntitlementDoesNotUnlockPro() {
+        let defaults = isolatedDefaults()
+        writePersisted(
+            VerifiedSubscriptionPersistence.Record(
+                productID: SubscriptionProductID.monthly.rawValue,
+                expirationDate: frozenNow,
+                revocationDate: nil
+            ),
+            to: defaults
+        )
+
+        let store = makeStore(FakeSubscriptionCommerce(), defaults: defaults)
+
+        #expect(!store.isSubscribed)
+        #expect(store.status == .notSubscribed)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+    }
+
+    @Test("Revoked persisted entitlement does not unlock Pro")
+    func revokedPersistedEntitlementDoesNotUnlockPro() async {
+        let defaults = isolatedDefaults()
+        writePersisted(
+            VerifiedSubscriptionPersistence.Record(
+                productID: SubscriptionProductID.monthly.rawValue,
+                expirationDate: monthlyExpiry,
+                revocationDate: frozenNow
+            ),
+            to: defaults
+        )
+
+        let store = makeStore(FakeSubscriptionCommerce(), defaults: defaults)
+        #expect(!store.isSubscribed)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+
+        VerifiedSubscriptionPersistence.save(monthly(), to: defaults, now: frozenNow)
+        let revokedLedger = FakeSubscriptionCommerce()
+        revokedLedger.entitlements = [monthly(revoked: frozenNow)]
+        let contradicted = makeStore(revokedLedger, defaults: defaults)
+        await contradicted.startAndRefresh()
+
+        #expect(!contradicted.isSubscribed)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+    }
+
+    @Test("Invalid persisted entitlement data does not unlock Pro")
+    func invalidPersistedEntitlementDoesNotUnlockPro() {
+        let defaults = isolatedDefaults()
+        defaults.set(Data("not-json".utf8), forKey: VerifiedSubscriptionPersistence.key)
+
+        let store = makeStore(FakeSubscriptionCommerce(), defaults: defaults)
+
+        #expect(!store.isSubscribed)
+        #expect(store.status == .notSubscribed)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+    }
+
+    @Test("Unknown persisted product ID never unlocks Pro")
+    func unknownPersistedProductIDNeverUnlocksPro() {
+        let defaults = isolatedDefaults()
+        writePersisted(
+            VerifiedSubscriptionPersistence.Record(
+                productID: "com.other.app.monthly",
+                expirationDate: monthlyExpiry,
+                revocationDate: nil
+            ),
+            to: defaults
+        )
+
+        let store = makeStore(FakeSubscriptionCommerce(), defaults: defaults)
+
+        #expect(!store.isSubscribed)
+        #expect(store.status == .notSubscribed)
+        #expect(defaults.data(forKey: VerifiedSubscriptionPersistence.key) == nil)
+    }
+
+    @Test("Persisted fallback is not treated as a new purchase")
+    func persistedFallbackIsNotANewPurchase() {
+        let defaults = isolatedDefaults()
+        VerifiedSubscriptionPersistence.save(monthly(), to: defaults, now: frozenNow)
+        let commerce = FakeSubscriptionCommerce()
+        let store = makeStore(commerce, defaults: defaults)
+
+        #expect(store.isSubscribed)
+        #expect(commerce.purchased.isEmpty)
+        #expect(commerce.currentEntitlementsCallCount == 0)
+    }
+
+    @Test("Trial access remains trialActive or isSubscribed after persistence")
+    func trialAccessRemainsTrialOrSubscribedAfterPersistence() async throws {
+        let suiteName = "au.freeday.tests.persist.trial.\(UUID().uuidString)"
+        let trialDefaults = UserDefaults(suiteName: suiteName)!
+        trialDefaults.removePersistentDomain(forName: suiteName)
+        defer { trialDefaults.removePersistentDomain(forName: suiteName) }
+
+        var gmt = Calendar(identifier: .gregorian)
+        gmt.timeZone = TimeZone(secondsFromGMT: 0)!
+        let trialStart = frozenNow
+        _ = ProAccessStore(defaults: trialDefaults, now: { trialStart }, calendar: gmt)
+
+        let afterTrial = gmt.date(byAdding: .day, value: 30, to: trialStart)!.addingTimeInterval(1)
+        let access = ProAccessStore(defaults: trialDefaults, now: { afterTrial }, calendar: gmt)
+        #expect(access.trialExpired)
+        #expect(!access.hasFullAccess(isSubscribed: false))
+
+        let subscriptionDefaults = isolatedDefaults()
+        VerifiedSubscriptionPersistence.save(monthly(), to: subscriptionDefaults, now: frozenNow)
+        let store = makeStore(FakeSubscriptionCommerce(), defaults: subscriptionDefaults)
+
+        #expect(store.isSubscribed)
+        #expect(access.hasFullAccess(isSubscribed: store.isSubscribed))
+        #expect(access.hasFullAccess(isSubscribed: false) == false)
     }
 }
 

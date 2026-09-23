@@ -13,6 +13,7 @@ final class SubscriptionStore {
 
     private let commerce: any SubscriptionCommerce
     private let now: @Sendable () -> Date
+    private let defaults: UserDefaults
     private var updatesTask: Task<Void, Never>?
     /// Last verified purchase. `Transaction.currentEntitlements` can stay empty on TestFlight
     /// immediately after buy; this grant must not be erased by that stale ledger.
@@ -37,10 +38,13 @@ final class SubscriptionStore {
 
     init(
         commerce: any SubscriptionCommerce = StoreKitSubscriptionCommerce(),
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        defaults: UserDefaults = .standard
     ) {
         self.commerce = commerce
         self.now = now
+        self.defaults = defaults
+        restorePersistedFallbackIfNeeded()
     }
 
     func start() {
@@ -80,6 +84,15 @@ final class SubscriptionStore {
     private func rememberVerifiedPurchase(_ entitlement: SubscriptionEntitlement?) {
         guard let entitlement, entitlement.isActive(at: now()) else { return }
         verifiedPurchaseEntitlement = entitlement
+        VerifiedSubscriptionPersistence.save(entitlement, to: defaults, now: now())
+    }
+
+    private func restorePersistedFallbackIfNeeded() {
+        guard let persisted = VerifiedSubscriptionPersistence.loadActive(from: defaults, now: now()) else {
+            return
+        }
+        verifiedPurchaseEntitlement = persisted
+        status = Self.status(from: [persisted], now: now())
     }
 
     private func applyVerifiedPurchaseEntitlement(_ entitlement: SubscriptionEntitlement?) {
@@ -120,15 +133,28 @@ final class SubscriptionStore {
         }
     }
 
-    /// Apple's ledger wins when it has an active entitlement. An empty or inactive
-    /// ledger must not replace a still-active verified purchase from this session.
+    /// A. Active StoreKit ledger wins and replaces the local fallback.
+    /// B. An empty ledger keeps a still-active verified fallback (in-memory or persisted).
+    /// C. An explicitly inactive/revoked/expired ledger clears that fallback.
     private func resolvedStatus(ledgerEntitlements: [SubscriptionEntitlement]) -> SubscriptionStatus {
         let ledgerStatus = Self.status(from: ledgerEntitlements, now: now())
-        if case .subscribed = ledgerStatus {
+        if case .subscribed(let productID, let expirationDate) = ledgerStatus {
+            rememberVerifiedPurchase(
+                SubscriptionEntitlement(productID: productID, expirationDate: expirationDate, revocationDate: nil)
+            )
             return ledgerStatus
+        }
+        if !ledgerEntitlements.isEmpty {
+            verifiedPurchaseEntitlement = nil
+            VerifiedSubscriptionPersistence.clear(from: defaults)
+            return .notSubscribed
         }
         if let verified = verifiedPurchaseEntitlement, verified.isActive(at: now()) {
             return Self.status(from: [verified], now: now())
+        }
+        if verifiedPurchaseEntitlement != nil {
+            verifiedPurchaseEntitlement = nil
+            VerifiedSubscriptionPersistence.clear(from: defaults)
         }
         return ledgerStatus
     }
@@ -144,5 +170,54 @@ final class SubscriptionStore {
             return .notSubscribed
         }
         return .subscribed(productID: best.productID, expirationDate: best.expirationDate)
+    }
+}
+
+/// Smallest local copy of a previously verified entitlement. Not proof of a new purchase.
+enum VerifiedSubscriptionPersistence {
+    static let key = "subscription.verifiedEntitlement"
+
+    struct Record: Codable, Equatable {
+        var productID: String
+        var expirationDate: Date?
+        var revocationDate: Date?
+    }
+
+    static func save(_ entitlement: SubscriptionEntitlement, to defaults: UserDefaults, now: Date) {
+        guard entitlement.isActive(at: now) else { return }
+        guard SubscriptionProductID(rawValue: entitlement.productID.rawValue) != nil else { return }
+        let record = Record(
+            productID: entitlement.productID.rawValue,
+            expirationDate: entitlement.expirationDate,
+            revocationDate: entitlement.revocationDate
+        )
+        guard let data = try? JSONEncoder().encode(record) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    static func loadActive(from defaults: UserDefaults, now: Date) -> SubscriptionEntitlement? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        guard let record = try? JSONDecoder().decode(Record.self, from: data) else {
+            defaults.removeObject(forKey: key)
+            return nil
+        }
+        guard let productID = SubscriptionProductID(rawValue: record.productID) else {
+            defaults.removeObject(forKey: key)
+            return nil
+        }
+        let entitlement = SubscriptionEntitlement(
+            productID: productID,
+            expirationDate: record.expirationDate,
+            revocationDate: record.revocationDate
+        )
+        guard entitlement.isActive(at: now) else {
+            defaults.removeObject(forKey: key)
+            return nil
+        }
+        return entitlement
+    }
+
+    static func clear(from defaults: UserDefaults) {
+        defaults.removeObject(forKey: key)
     }
 }

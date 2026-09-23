@@ -15,7 +15,10 @@ struct PaywallModelTests {
     }
 
     private func makeStore(_ commerce: FakeSubscriptionCommerce) -> SubscriptionStore {
-        SubscriptionStore(commerce: commerce, now: { frozenNow })
+        let suiteName = "au.freeday.tests.paywall.subscription.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return SubscriptionStore(commerce: commerce, now: { frozenNow }, defaults: defaults)
     }
 
     @Test("Headline and explanation match the ended-trial copy")
